@@ -544,7 +544,7 @@ func cameraSnapshot(s *discordgo.Session, m *discordgo.MessageCreate, command st
 		if resp.StatusCode != http.StatusOK {
 			log.Printf("Request failed with status: %d", resp.StatusCode)
 			privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Request failed with status: %d", resp.StatusCode), false)
-		}
+		} else {
 
 		// Read the response body
 		body, err := ioutil.ReadAll(resp.Body)
@@ -561,7 +561,7 @@ func cameraSnapshot(s *discordgo.Session, m *discordgo.MessageCreate, command st
 			privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error parsing JSON: %v", err), false)
 		}
 		privateMessageCreate(s, m.Author.ID, viper.GetString("camerasnapshoturl")+"/"+camera+"-"+response.EventID+".jpg", false)
-
+		}
 	} else {
 		privateMessageCreate(s, m.Author.ID, "Camera not found", false)
 	}
