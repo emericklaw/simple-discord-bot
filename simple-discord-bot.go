@@ -776,41 +776,6 @@ func downloadApi(url string) string {
 	}
 }
 
-// take a snapshot of the camera using motioneye-snapshotter
-func takeSnapshot(camera string) string {
-	url := viper.GetString("cameraserver") + "/snap?camera=" + camera
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Printf("Error: Cannot execute Get snapshot for \"%s\", Message:%s\n", camera, err)
-		return "Could not take snapshot"
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		body, err := ioutil.ReadAll(resp.Body)
-
-		if err != nil {
-			log.Printf("Error: Cannot take snapshot URL \"%s\", Message:%s\n", url, err)
-			return "Could not take snapshot"
-		}
-
-		return string(body)
-	} else {
-		log.Println("Error: Could not take snapshot " + url + " HTTPStatus: " + string(resp.StatusCode))
-		return "Could not take snapshot"
-	}
-}
-
-// check whether camera is valid
-func foundCamera(camera string) bool {
-	for _, result := range viper.GetStringSlice("cameras") {
-		if result == camera {
-			return true
-		}
-	}
-	return false
-}
-
 // check if a user has a particular role, if they have a role return true
 func checkUserPerms(role string, user *discordgo.Member, userid string) bool {
 	roledetails := strings.Split(strings.ToLower(role), ":")
