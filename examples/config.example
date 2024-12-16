@@ -55,13 +55,19 @@ commands:
       - all
   "camera snapshot":
     help: "Take a snapshot of the camera"
-    api: "http://172.28.0.10:54036/snap?camera={0}"
+    function: "cameraSnapshot"
     secret: true
     roles:
       - admin
   "camera list":
     help: "Display list of cameras"
-    api: "http://172.28.0.10:54036/cameras"
+    function: "cameraList"
+    roles:
+      - admin
+  "camera snapshots":
+    help: "URL of Snapshots"
+    message: "https://cctv.example.com/"
+    secret: true
     roles:
       - admin
   "server ip":

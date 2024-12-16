@@ -544,24 +544,24 @@ func cameraSnapshot(s *discordgo.Session, m *discordgo.MessageCreate, command st
 		if resp.StatusCode != http.StatusOK {
 			log.Printf("Request failed with status: %d", resp.StatusCode)
 			privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Request failed with status: %d", resp.StatusCode), false)
-		}
+		} else {
 
-		// Read the response body
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Printf("Error reading response body: %v", err)
-			privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error reading response body: %v", err), false)
-		}
+			// Read the response body
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Printf("Error reading response body: %v", err)
+				privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error reading response body: %v", err), false)
+			}
 
-		// Parse the JSON response
-		var response SnapshotResponse
-		err = json.Unmarshal(body, &response)
-		if err != nil {
-			log.Printf("Error parsing JSON: %v", err)
-			privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error parsing JSON: %v", err), false)
+			// Parse the JSON response
+			var response SnapshotResponse
+			err = json.Unmarshal(body, &response)
+			if err != nil {
+				log.Printf("Error parsing JSON: %v", err)
+				privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error parsing JSON: %v", err), false)
+			}
+			privateMessageCreate(s, m.Author.ID, viper.GetString("camerasnapshoturl")+"/"+camera+"-"+response.EventID+".jpg", false)
 		}
-		privateMessageCreate(s, m.Author.ID, viper.GetString("camerasnapshoturl")+"/"+camera+"-"+response.EventID+".jpg", false)
-
 	} else {
 		privateMessageCreate(s, m.Author.ID, "Camera not found", false)
 	}
@@ -765,50 +765,15 @@ func downloadApi(url string) string {
 		body, err := ioutil.ReadAll(resp.Body)
 
 		if err != nil {
-			log.Printf("Error: Cannot take snapshot URL \"%s\", Message:%s\n", url, err)
-			return "Could not take snapshot"
+			log.Printf("Error: Error with API request URL \"%s\", Message:%s\n", url, err)
+			return "Could not make API request"
 		}
 
 		return string(body)
 	} else {
-		log.Println("Error: Could not take snapshot " + url + " HTTPStatus: " + string(resp.StatusCode))
-		return "Could not take snapshot"
+		log.Println("Error: Could not make API request " + url + " HTTPStatus: " + string(resp.StatusCode))
+		return "Could not make API request"
 	}
-}
-
-// take a snapshot of the camera using motioneye-snapshotter
-func takeSnapshot(camera string) string {
-	url := viper.GetString("cameraserver") + "/snap?camera=" + camera
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Printf("Error: Cannot execute Get snapshot for \"%s\", Message:%s\n", camera, err)
-		return "Could not take snapshot"
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		body, err := ioutil.ReadAll(resp.Body)
-
-		if err != nil {
-			log.Printf("Error: Cannot take snapshot URL \"%s\", Message:%s\n", url, err)
-			return "Could not take snapshot"
-		}
-
-		return string(body)
-	} else {
-		log.Println("Error: Could not take snapshot " + url + " HTTPStatus: " + string(resp.StatusCode))
-		return "Could not take snapshot"
-	}
-}
-
-// check whether camera is valid
-func foundCamera(camera string) bool {
-	for _, result := range viper.GetStringSlice("cameras") {
-		if result == camera {
-			return true
-		}
-	}
-	return false
 }
 
 // check if a user has a particular role, if they have a role return true
