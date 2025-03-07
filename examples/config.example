@@ -1,5 +1,6 @@
 discordtoken: aaaaaBBBBBBBcccccDDDDDD
 defaultserverid: 123123123123123123
+logchannelid: 321321321321321321
 canaryenable: true
 canaryinterval: 10
 canaryurl: "http://172.28.0.10:54035/checkin/eeh-bot"
