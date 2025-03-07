@@ -26,6 +26,8 @@ import (
 
 const applicationVersion string = "v0.7.6"
 
+var dg *discordgo.Session // Global Discord session
+
 var (
 	Token string
 )
@@ -69,19 +71,50 @@ func init() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			log.Fatal("Config file not found")
+			logger("fatal", "Config file not found")
 		} else {
-			log.Fatal("Config file was found but another error was discovered: ", err)
+			logger("fatal", "Config file was found but another error was discovered: ", err)
 		}
 	}
 
 	if !viper.IsSet("discordtoken") {
-		log.Fatal("No discordtoken configured")
+		logger("fatal", "No discordtoken configured")
 	}
 
 	Token = viper.GetString("discordtoken")
 
 	// listRoles()
+}
+
+func initDiscord() error {
+	log.Println("🔹 Starting Discord initialization...")
+
+	BotToken := viper.GetString("discordtoken")
+
+	var err error
+	dg, err = discordgo.New("Bot " + BotToken)
+	if err != nil {
+		logger("fatal", "Unable to create Discord session: %s", err)
+		return err
+	}
+
+	logger("success", "Discord session object created")
+
+	err = dg.Open()
+	if err != nil {
+		logger("fatal", "Unable to open Discord connection: %s", err)
+		return err
+	}
+
+	logger("success", "Discord bot is running!")
+
+	dg.AddHandler(messageCreate)
+
+	dg.AddHandler(addReaction)
+
+	dg.AddHandler(removeReaction)
+
+	return nil
 }
 
 func main() {
@@ -90,23 +123,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Create a new Discord session using the provided bot token.
-	dg, err := discordgo.New("Bot " + Token)
-	if err != nil {
-		log.Println("error creating Discord session,", err)
-		return
-	}
-
-	dg.AddHandler(messageCreate)
-
-	dg.AddHandler(addReaction)
-
-	dg.AddHandler(removeReaction)
-
-	err = dg.Open()
-	if err != nil {
-		log.Println("error opening connection,", err)
-		return
+	// Initialize Discord bot and check for errors
+	if err := initDiscord(); err != nil {
+		logger("fatal", "Failed to start Discord bot: %s", err)
 	}
 
 	if viper.GetBool("canaryenable") {
@@ -114,11 +133,11 @@ func main() {
 	}
 
 	if viper.GetBool("shellenable") && !viper.IsSet("shell") {
-		log.Println("Error: If shellenable=true, a shell must be defined")
+		logger("fatal", "If shellenable=true, a shell must be defined")
 		os.Exit(1)
 	}
 
-	log.Printf("simple-discord-bot %s is now running.  Press CTRL-C to exit.\n", applicationVersion)
+	logger("success", "simple-discord-bot %s is now running.  Press CTRL-C to exit.\n", applicationVersion)
 
 	// check tracked reactions
 	checkReactions(dg)
@@ -185,7 +204,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// log commands passed to bot
-	log.Printf("User:%s ID:%s Command:\"%s\"\n", m.Author.Username, m.Author.ID, m.Content)
+	logger("info", "User: %s ID: %s Command: \"%s\"\n", m.Author.Username, m.Author.ID, m.Content)
 
 	// strip out the command key
 	cleancommand := strings.Replace(strings.ToLower(m.Content), viper.GetString("commandkey")+" ", "", 1)
@@ -196,7 +215,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	mycommand, iscommandvalid, commandoptions := findCommand(cleancommand)
 
 	if !iscommandvalid {
-		log.Printf("User:%s ID:%s Command:\"%s\" Status:\"Command is invalid\"\n", m.Author.Username, m.Author.ID, m.Content)
+		logger("warning", "User: %s ID: %s Command: \"%s\" Status: \"Command is invalid\"\n", m.Author.Username, m.Author.ID, m.Content)
 		return
 	}
 
@@ -207,7 +226,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	for _, role := range commandRoles {
 		if !isRoleValid(role) {
 			// role doesn't exist
-			log.Printf("Error: role (%s) not valid do not exist for command %s", role, mycommand)
+			logger("error", "Role (%s) not valid do not exist for command %s", role, mycommand)
 			return
 		}
 	}
@@ -220,7 +239,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 	}
 	if !canRun {
-		log.Printf("Error: User:%s ID:%s Does not have permission to run Command: \"%s\"\n", m.Author.Username, m.Author.ID, m.Content)
+		logger("error", "User: %s ID: %s Does not have permission to run Command: \"%s\"\n", m.Author.Username, m.Author.ID, m.Content)
 		return
 	}
 
@@ -236,19 +255,19 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		// if api and file then return and throw an error, this is not a valid option configuration
 		if isapicall && isfile {
-			log.Printf("Error: Cannot have command api with file on command %s\n", mycommand)
+			logger("error", "Cannot have command api with file on command %s\n", mycommand)
 			return
 		}
 
 		// if shell and (file or api) then return and throw an error, this is not a valid option configuration
 		if isshell && (isfile || isapicall) {
-			log.Printf("Error: Cannot have command shell with file or api on command %s\n", mycommand)
+			logger("error", "Cannot have command shell with file or api on command %s\n", mycommand)
 			return
 		}
 
 		// if function and (file or api or shell) then return and throw an error, this is not a valid option configuration
 		if isfunction && (isshell || isfile || isapicall) {
-			log.Printf("Error: Cannot have command function with shell or file or api on command %s\n", mycommand)
+			logger("error", "Cannot have command function with shell or file or api on command %s\n", mycommand)
 			return
 		}
 
@@ -264,7 +283,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			// if we need to load a files contents into message to send
 			tempcontents, err := loadFile(prepareTemplate(viper.GetString("commands."+mycommand+".file"), commandoptions))
 			if err != nil {
-				log.Printf("Error loading file: %s with: %v\n", messagetosend, err)
+				logger("warning", "Error loading file: %s with: %v\n", messagetosend, err)
 				return
 			}
 
@@ -272,7 +291,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		} else if isshell && viper.GetBool("shellenable") {
 			err, stdout, stderr := shellOut(prepareTemplate(viper.GetString("commands."+mycommand+".shell"), commandoptions))
 			if err != nil {
-				log.Printf("Error: Error executing command:\"%s\" err:%v\n", messagetosend, err)
+				logger("error", "Error executing command: \"%s\" err: %v\n", messagetosend, err)
 			}
 
 			messagetosend = ""
@@ -290,7 +309,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			}
 		} else if isshell && !viper.GetBool("shellenable") {
 			// do nothing and return when command is a shell and shellenable = false
-			log.Println("Error: Cannot run shell command when shellenable = false")
+			logger("error", "Cannot run shell command when shellenable = false")
 			return
 		} else if isfunction {
 			lengthOfMessageWithoutCommand := len(viper.GetString("commandkey")) + 1 + len(mycommand) + 1
@@ -407,7 +426,7 @@ func checkReactions(s *discordgo.Session) {
 			// check emoji is being tracked for this message
 			messageReactions, err := s.MessageReactions(channelID, messageID, m["emoji"].(string), 100, "", "")
 			if err != nil {
-				log.Printf("Error: Checking reactions channelID:%s messageID:%s, Error:%s\n", channelID, messageID, err)
+				logger("error", "Checking reactions channelID: %s messageID: %s, Error: %s\n", channelID, messageID, err)
 			}
 			var hasBotReaction bool = false
 			for _, user := range messageReactions {
@@ -479,7 +498,7 @@ func listEmoji(s *discordgo.Session, m *discordgo.MessageCreate, command string,
 	if guildID != "" {
 		emojis, err := s.GuildEmojis(guildID)
 		if err != nil {
-			log.Printf("Error: could not get emoji with error:%s", err)
+			logger("error", "Could not get emoji with error: %s", err)
 		}
 
 		var message string
@@ -526,7 +545,7 @@ func cameraSnapshot(s *discordgo.Session, m *discordgo.MessageCreate, command st
 		// Create a POST request
 		req, err := http.NewRequest("POST", url, nil)
 		if err != nil {
-			log.Printf("Error creating request: %v", err)
+			logger("error", "Error creating request: %v", err)
 			privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error creating request: %v", err), false)
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -535,21 +554,21 @@ func cameraSnapshot(s *discordgo.Session, m *discordgo.MessageCreate, command st
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Printf("Error sending POST request: %v", err)
+			logger("error", "Error sending POST request: %v", err)
 			privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error sending POST request: %v", err), false)
 		}
 		defer resp.Body.Close()
 
 		// Check if the request was successful
 		if resp.StatusCode != http.StatusOK {
-			log.Printf("Request failed with status: %d", resp.StatusCode)
+			logger("warning", "Request failed with status: %d", resp.StatusCode)
 			privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Request failed with status: %d", resp.StatusCode), false)
 		} else {
 
 			// Read the response body
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				log.Printf("Error reading response body: %v", err)
+				logger("warning", "Error reading response body: %v", err)
 				privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error reading response body: %v", err), false)
 			}
 
@@ -557,7 +576,7 @@ func cameraSnapshot(s *discordgo.Session, m *discordgo.MessageCreate, command st
 			var response SnapshotResponse
 			err = json.Unmarshal(body, &response)
 			if err != nil {
-				log.Printf("Error parsing JSON: %v", err)
+				logger("warning", "Error parsing JSON: %v", err)
 				privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error parsing JSON: %v", err), false)
 			}
 			privateMessageCreate(s, m.Author.ID, viper.GetString("camerasnapshoturl")+"/"+camera+"-"+response.EventID+".jpg", false)
@@ -576,7 +595,7 @@ func cameraList(s *discordgo.Session, m *discordgo.MessageCreate, command string
 	// Create a GET request
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Printf("Error creating request: %v", err)
+		logger("error", "Error creating request: %v", err)
 		privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error creating request: %v", err), false)
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -585,21 +604,21 @@ func cameraList(s *discordgo.Session, m *discordgo.MessageCreate, command string
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("Error sending GET request: %v", err)
+		logger("error", "Error sending GET request: %v", err)
 		privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error sending GET request: %v", err), false)
 	}
 	defer resp.Body.Close()
 
 	// Check if the request was successful
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("Request failed with status: %d", resp.StatusCode)
+		logger("error", "Request failed with status: %d", resp.StatusCode)
 		privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Request failed with status: %d", resp.StatusCode), false)
 	}
 
 	// Read the response body
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Error reading response body: %v", err)
+		logger("error", "Error reading response body: %v", err)
 		privateMessageCreate(s, m.Author.ID, fmt.Sprintf("Error reading response body: %v", err), false)
 	}
 
@@ -608,13 +627,13 @@ func cameraList(s *discordgo.Session, m *discordgo.MessageCreate, command string
 	// Parse the JSON data
 	err2 := json.Unmarshal([]byte(body), &data)
 	if err != nil {
-		log.Fatalf("Error parsing JSON: %v", err2)
+		logger("fatal", "Error parsing JSON: %v", err2)
 	}
 
 	// Extract the cameras object
 	cameras, ok := data["cameras"].(map[string]interface{})
 	if !ok {
-		log.Fatalf("Error extracting cameras data")
+		logger("fatal", "Error extracting cameras data")
 	}
 
 	// Concatenate keys into a single string with newline characters
@@ -757,7 +776,7 @@ func makeHomeAssistantAPIRequest(param string) {
 func downloadApi(url string) string {
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Printf("Error: Could not connect to api url:\"%s\" with error:%s", url, err)
+		logger("error", "Could not connect to api url: \"%s\" with error: %s", url, err)
 		return "error"
 	}
 	defer resp.Body.Close()
@@ -765,13 +784,13 @@ func downloadApi(url string) string {
 		body, err := ioutil.ReadAll(resp.Body)
 
 		if err != nil {
-			log.Printf("Error: Error with API request URL \"%s\", Message:%s\n", url, err)
+			logger("error", "Error with API request URL \"%s\", Message: %s\n", url, err)
 			return "Could not make API request"
 		}
 
 		return string(body)
 	} else {
-		log.Println("Error: Could not make API request " + url + " HTTPStatus: " + string(resp.StatusCode))
+		logger("error", "Could not make API request "+url+" HTTPStatus: "+string(resp.StatusCode))
 		return "Could not make API request"
 	}
 }
@@ -824,7 +843,7 @@ func checkUserPerms(role string, user *discordgo.Member, userid string) bool {
 // list normal roles and the users
 func listRoles() {
 	for k, v := range viper.GetStringMap("commandroles") {
-		fmt.Printf("Role:%s\n", k)
+		fmt.Printf("Role: %s\n", k)
 		for _, user := range v.([]interface{}) {
 			fmt.Println(" - ", user)
 		}
@@ -843,7 +862,7 @@ func isRoleValid(role string) bool {
 	// check if it is a discord role
 	if roledetails[0] == "discord" {
 		if !viper.IsSet("discordroles") {
-			log.Printf("Error: discordroles not configured")
+			logger("error", "Configuration variable 'discordroles' not configured")
 			return false
 		}
 
@@ -889,7 +908,7 @@ func privateMessageCreate(s *discordgo.Session, userid string, message string, c
 	// create the private message channel to user
 	channel, err := s.UserChannelCreate(userid)
 	if err != nil {
-		log.Printf("Error: Creating PM channel to %s with %s\n", userid, err)
+		logger("error", "Creating PM channel to %s with %s\n", userid, err)
 		s.ChannelMessageSend(userid, "Something went wrong while sending the DM!")
 		return
 	}
@@ -914,7 +933,7 @@ func privateMessageCreate(s *discordgo.Session, userid string, message string, c
 		// send the message to the user
 		_, err = s.ChannelMessageSend(channel.ID, wrapper+message+wrapper)
 		if err != nil {
-			log.Printf("Error: Cannot send DM to %s with %s\n", userid, err)
+			logger("error", "Cannot send DM to %s with %s\n", userid, err)
 			s.ChannelMessageSend(userid, "Failed to send you a DM. Did you disable DM in your privacy settings?")
 		}
 	}
@@ -948,7 +967,7 @@ func channelMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate, mess
 		// send the message to the user
 		_, err = s.ChannelMessageSend(m.ChannelID, wrapper+message+wrapper)
 		if err != nil {
-			log.Printf("Error: Cannot send message to channel: %s\n", err)
+			logger("error", "Cannot send message to channel: %s\n", err)
 		}
 	}
 
@@ -1030,15 +1049,15 @@ func performCheckin(url string) {
 	}
 	resp, err := client.Get(url)
 	if err != nil {
-		log.Printf("Error: Could not connect to canary with error: %s", err)
+		logger("error", "Could not connect to canary with error: %s", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("Error: Unexpected response status: %d", resp.StatusCode)
+		logger("error", "Unexpected response status: %d", resp.StatusCode)
 	} else {
-		log.Println("Success: Canary Checkin")
+		logger("success", "Canary Checkin successful")
 	}
 }
 
@@ -1096,4 +1115,105 @@ func lastFoundBetween(s, sep string, start int, end int) int {
 		idx += start
 	}
 	return idx
+}
+
+func logger(logLevel string, format string, args ...interface{}) {
+	if dg == nil {
+		log.Println("⚠️ Discord session is nil")
+	}
+
+	// Format the string
+	message := fmt.Sprintf(format, args...)
+
+	logLevelEmoji := getLogLevelEmoji(logLevel)
+
+	// Log the error
+	log.Printf(logLevelEmoji+"%s", message)
+
+	if !viper.IsSet("logchannelid") {
+		log.Printf(getLogLevelEmoji("fatal") + "No logchannelid configured")
+	} else {
+		channelID := viper.GetString("logchannelid")
+		sendEmbedMessageToDiscord(channelID, getLogLevelColor(logLevel), logLevelEmoji+strings.Title(logLevel), message)
+	}
+}
+
+func sendMessageToDiscord(channelID string, message string) {
+	if dg == nil {
+		log.Println("⚠️ Discord session is nil")
+	}
+
+	_, err := dg.ChannelMessageSend(channelID, message)
+	if err != nil {
+		logger("error", "Unable to send message to Discord: %s", err)
+	}
+}
+
+// Send Message
+func sendEmbedMessageToDiscord(channelID string, colour int, title string, message string) {
+	if dg == nil {
+		log.Println("⚠️ Discord session is nil")
+	}
+
+	// Create embed JSON structure
+	embed := &discordgo.MessageEmbed{
+		Title:       title,
+		Description: message,
+		Color:       colour,
+		Fields:      []*discordgo.MessageEmbedField{},
+	}
+
+	// Send the message to the specified channel
+	_, err := dg.ChannelMessageSendEmbed(channelID, embed)
+	if err != nil {
+		logger("error", "Error sending message: %s", err)
+	}
+}
+
+// Map of log levels to their color codes
+var logLevelColors = map[string]int{
+	"info":     0x2299CC, // Blue
+	"debug":    0x808080, // Gray
+	"warning":  0xFFFF00, // Yellow
+	"error":    0xFF0000, // Red
+	"critical": 0x800000, // Maroon
+	"fatal":    0x8B0000, // Dark Red
+	"success":  0x32CD32, // Lime Green
+	"notice":   0x1E90FF, // Blue
+	"alert":    0xFFD700, // Gold
+}
+
+// getLogLevelColor takes a log level as input and returns the corresponding color.
+func getLogLevelColor(level string) int {
+	// Check if the log level exists in the map, otherwise default to black (0x000000).
+	color, exists := logLevelColors[level]
+	if !exists {
+		logger("warning", "Unknown log level: %s. Defaulting to black.", level)
+		return 0x000000 // Black color for unknown log levels
+	}
+	return color
+}
+
+// Map of log levels to their relevant emojis
+var logLevelEmojis = map[string]string{
+	"info":     "ℹ️", // Information Emoji
+	"debug":    "🐞",  // Bug Emoji (For Debugging)
+	"warning":  "⚠️", // Warning Emoji
+	"error":    "❌",  // Error Emoji
+	"critical": "🔥",  // Fire Emoji (Critical issue)
+	"fatal":    "💀",  // Skull Emoji (Fatal error)
+	"success":  "✅",  // Check Mark Emoji (Success)
+	"notice":   "🔔",  // Bell Emoji (Notice)
+	"alert":    "🚨",  // Police Car Light Emoji (Alert)
+}
+
+// getLogLevelEmoji takes a log level as input and returns the corresponding emoji.
+func getLogLevelEmoji(level string) string {
+	// Check if the log level exists in the map, otherwise return a question mark emoji.
+	emoji, exists := logLevelEmojis[level]
+	if !exists {
+		logger("warning", "Unknown log level: %s. Defaulting to question mark emoji.", level)
+		return "❓ " // Default emoji for unknown log levels
+	}
+	return emoji + " "
 }
