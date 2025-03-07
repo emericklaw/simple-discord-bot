@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const applicationVersion string = "v0.7.5"
+const applicationVersion string = "v0.7.6"
 
 var (
 	Token string
@@ -1012,22 +1012,33 @@ func findCommand(thecommand string) (string, bool, map[string]string) {
 }
 
 func canaryCheckin(url string, interval int) {
+	// First immediate check-in
+	performCheckin(url)
+
+	// Start periodic check-ins
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
-	for _ = range ticker.C {
-		client := http.Client{
-			Timeout: 5 * time.Second,
-		}
-		resp, err := client.Get(url)
-		if err != nil {
-			log.Printf("Error: Could not connect to canary with error:%s", err)
-		} else {
-			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				log.Printf("Error: Could not checkin to canary with error:%s", err)
-			} else {
-				log.Println("Success: Canary Checkin")
-			}
-		}
+	defer ticker.Stop()
+
+	for range ticker.C {
+		performCheckin(url)
+	}
+}
+
+func performCheckin(url string) {
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Get(url)
+	if err != nil {
+		log.Printf("Error: Could not connect to canary with error: %s", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Error: Unexpected response status: %d", resp.StatusCode)
+	} else {
+		log.Println("Success: Canary Checkin")
 	}
 }
 
