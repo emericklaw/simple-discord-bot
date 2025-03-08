@@ -1,0 +1,222 @@
+package main
+
+import (
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/spf13/viper"
+)
+
+func findCommand(thecommand string) (string, bool, map[string]string) {
+
+	isValidCommand := false
+
+	allparts := strings.Split(thecommand, " ")
+	num_allparts := len(allparts)
+
+	var checkthiscommand string = ""
+
+	var lastvalidcommandfound string = ""
+
+	var option_num int = 0
+
+	options := make(map[string]string)
+
+	for i := 0; i < num_allparts; i++ {
+		if i == 0 {
+			checkthiscommand = allparts[0]
+		} else {
+			checkthiscommand = checkthiscommand + " " + allparts[i]
+		}
+
+		if _, ok := viper.GetStringMap("commands")[checkthiscommand]; ok {
+			lastvalidcommandfound = checkthiscommand
+			isValidCommand = true
+
+			// assume all remaining unparse tokens are optional.  each loop will update the list until no further valid commands are found
+			option_num = 0
+			new_options := make(map[string]string)
+			for oi := i + 1; oi < num_allparts; oi++ {
+				new_options["{"+strconv.Itoa(option_num)+"}"] = allparts[oi]
+				option_num++
+			}
+
+			options = new_options
+
+		} else {
+			// command not matched, continue iterating through commands looking for the longest matching combination
+		}
+
+	}
+
+	return lastvalidcommandfound, isValidCommand, options
+}
+
+// custom command function for sending messages as the bot
+func sendMessage(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+
+	// split the string by whitespace
+	words := strings.Split(content, " ")
+
+	// get channel ID
+	channelID := strings.Join(words[0:1], " ")
+
+	// Get the last words ignoring the first
+	message := strings.Join(words[1:], " ")
+
+	// send message to channel
+	s.ChannelMessageSend(channelID, message)
+}
+
+// custom command function for editing messages as the bot
+func editMessage(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+
+	// split the string by whitespace
+	words := strings.Split(content, " ")
+
+	// get channel ID
+	channelID := strings.Join(words[0:1], " ")
+
+	// get message ID
+	messageID := strings.Join(words[1:2], " ")
+
+	// Get the last words ignoring the first two
+	message := strings.Join(words[2:], " ")
+
+	// edits message in channel
+	s.ChannelMessageEdit(channelID, messageID, message)
+}
+
+// custom command function to list all Emoji
+func listEmoji(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+
+	words := strings.Split(content, " ")
+
+	// get guild ID from message
+	guildID := strings.Join(words[0:1], " ")
+
+	//	var guildID string = m.GuildID
+
+	if guildID == "" {
+		guildID = m.GuildID
+	}
+
+	if guildID != "" {
+		emojis, err := s.GuildEmojis(guildID)
+		if err != nil {
+			logger("error", "Could not get emoji with error: %s", err)
+		}
+
+		var message string
+
+		for _, emoji := range emojis {
+			if m.GuildID != "" {
+				message += "<:" + emoji.Name + ":" + emoji.ID + ">  `" + emoji.ID + "    " + emoji.Name + "`\n"
+			} else {
+				message += emoji.ID + "    " + emoji.Name + "\n"
+			}
+		}
+
+		if m.GuildID != "" {
+			channelMessageCreate(s, m, "**Emoji for "+guildID+"**\n"+message, false)
+		} else {
+			privateMessageCreate(s, m.Author.ID, "**Emoji for "+guildID+"**\n```"+message+"```", false)
+		}
+	} else {
+		if m.GuildID != "" {
+			channelMessageCreate(s, m, "Guild/Server ID not found", false)
+		} else {
+			privateMessageCreate(s, m.Author.ID, "Guild/Server ID not found", false)
+		}
+	}
+}
+
+// custom command function to list all commands based on user permission
+func showHelp(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+
+	user, _ := s.GuildMember(viper.GetString("_discord_default_server_id"), m.Author.ID)
+
+	var helpMessage string
+
+	commandkey := viper.GetString("_command_key")
+
+	allCommands := viper.GetStringMap("commands")
+
+	// Loop through the commands map
+	for command, info := range allCommands {
+
+		// check if user has permission to execute a command
+		var canRun bool = false
+
+		// Access the "roles" for each command
+		roles, ok := info.(map[string]interface{})["roles"]
+		if !ok {
+			logger("warning", "Help information not found for command %s", command)
+			continue
+		}
+
+		for _, role := range roles.([]interface{}) {
+			if checkUserPerms(role.(string), user, m.Author.ID) {
+				canRun = true
+			}
+		}
+
+		if canRun {
+			// Access the "help" field for each command
+			help, ok := info.(map[string]interface{})["help"].(string)
+			if !ok {
+				logger("warning", "Help information not found for command %s", command)
+				continue
+			}
+
+			helpMessage += commandkey + " " + command + strings.Repeat(" ", 30-len(command)) + "- " + help + "\n"
+		}
+
+	}
+
+	// sort commands into alphabetical order
+
+	// Split the string into lines
+	lines := strings.Split(helpMessage, "\n")
+
+	// Sort the lines alphabetically
+	sort.Strings(lines)
+
+	// Join the sorted lines back together
+	helpMessage = strings.Join(lines, "\n")
+
+	helpMessage = "Help Commands:\n--------------\n" + helpMessage
+
+	privateMessageCreate(s, m.Author.ID, helpMessage, true)
+}
+
+// custom command function for showing the version
+func showVersion(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+	messagetosend := "**__Simple Discord Bot__**\n**Version:** " + applicationVersion + "\n**Built:** " + buildDateTime
+	channelMessageCreate(s, m, messagetosend, false)
+}
+
+// custom command function for changing the current log level
+func logLevelSet(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+	var messagetosend string
+	if _, exists := logLevels[content]; exists {
+		currentLogLevel = content
+
+		viper.Set("_log_level", currentLogLevel)
+		viper.WriteConfig()
+
+		messagetosend = "Log level successfully updated to **" + currentLogLevel + "**"
+	} else {
+		messagetosend = "**" + command + "** is not a valid log level it must be one of debug, info, notice, warning, error, critical, alert, emergency"
+	}
+
+	channelMessageCreate(s, m, messagetosend, false)
+}
+
+// custom command function for showing the version
+func logLevelShow(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+	messagetosend := "**Current Log Level**: " + currentLogLevel
+	channelMessageCreate(s, m, messagetosend, false)
+}

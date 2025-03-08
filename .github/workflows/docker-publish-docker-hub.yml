@@ -62,7 +62,7 @@ jobs:
       - name: Extract application version
         shell: bash
         run: |
-          APP_VERSION=$(cat ./simple-discord-bot.go|grep ^const\ applic|cut -f5 -d\ |sed 's/\"//g')
+          APP_VERSION=$(cat ./main.go|grep ^const\ applic|cut -f5 -d\ |sed 's/\"//g')
           echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
 
       - name: Show application version
@@ -71,6 +71,11 @@ jobs:
         env:
           APP_VERSION: ${{ env.APP_VERSION }}
           
+      - name: Set application build date/time
+        shell: bash
+        run: |
+          sed -i "s|const buildDateTime string = \".*\"|const buildDateTime string = \"${current_time}\"|g" main.go
+
       - name: Install dependencies
         run: |
           go get .
