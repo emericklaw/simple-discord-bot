@@ -28,7 +28,7 @@ func init() {
 	flag.Parse()
 
 	if *versionflag {
-		fmt.Printf("simple-discord-bot %s\n", applicationVersion)
+		fmt.Printf("simple-discord-bot %s\n", applicationVersion+" Built: "+buildDateTime)
 		os.Exit(0)
 	}
 
@@ -93,7 +93,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger("success", "Simple Discord Bot %s is now running.", applicationVersion)
+	logger("success", "Simple Discord Bot %s is now running.", applicationVersion+" Built: "+buildDateTime)
 
 	// check tracked reactions
 	checkReactions(dg)
