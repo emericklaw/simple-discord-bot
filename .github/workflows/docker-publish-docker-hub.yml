@@ -74,6 +74,7 @@ jobs:
       - name: Set application build date/time
         shell: bash
         run: |
+          current_time=$(date +"%Y-%m-%d %H:%M:%S")
           sed -i "s|const buildDateTime string = \".*\"|const buildDateTime string = \"${current_time}\"|g" main.go
 
       - name: Install dependencies
