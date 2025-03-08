@@ -74,8 +74,8 @@ jobs:
       - name: Set application build date/time
         shell: bash
         run: |
-          sed -i "s|const buildDateTime string = \".*\"|const buildDateTime string = \"${current_time}\"|g" main.go
-
+          cat main.go
+    
       - name: Install dependencies
         run: |
           go get .
