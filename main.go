@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const applicationVersion string = "v0.7.7"
+const applicationVersion string = "v0.7.8"
 const buildDateTime string = ""
 
 var currentLogLevel string = "notice"
