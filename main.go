@@ -14,7 +14,7 @@ import (
 )
 
 const applicationVersion string = "v0.7.6"
-const buildDateTime string = ""
+const buildDateTime string = "123456"
 
 var currentLogLevel string = "notice"
 var dg *discordgo.Session // Global Discord session
