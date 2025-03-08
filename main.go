@@ -13,8 +13,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-const applicationVersion string = "v0.7.6"
-const buildDateTime string = "123456"
+const applicationVersion string = "v0.7.7a"
+const buildDateTime string = ""
 
 var currentLogLevel string = "notice"
 var dg *discordgo.Session // Global Discord session
@@ -28,7 +28,7 @@ func init() {
 	flag.Parse()
 
 	if *versionflag {
-		fmt.Printf("simple-discord-bot %s\n", applicationVersion+" Built: "+buildDateTime)
+		fmt.Printf("simple-discord-bot Version: %s Built: %s\n", applicationVersion, buildDateTime)
 		os.Exit(0)
 	}
 
@@ -93,7 +93,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger("success", "Simple Discord Bot %s is now running.", applicationVersion+" Built: "+buildDateTime)
+	logger("success", "Simple Discord Bot is now running.\nVersion: %s\nBuilt: %s", applicationVersion, buildDateTime)
 
 	// check tracked reactions
 	checkReactions(dg)
