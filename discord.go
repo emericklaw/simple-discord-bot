@@ -379,3 +379,36 @@ func channelMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate, mess
 	}
 
 }
+
+// Send Embed Message
+func sendMessageToDiscord(channelID string, message string) {
+	if dg == nil {
+		log.Println("⚠️ Discord session is nil")
+	}
+
+	_, err := dg.ChannelMessageSend(channelID, message)
+	if err != nil {
+		logger("error", "Unable to send message to Discord: %s", err)
+	}
+}
+
+// Send Embed Message
+func sendEmbedMessageToDiscord(channelID string, colour int, title string, message string) {
+	if dg == nil {
+		log.Println("⚠️ Discord session is nil")
+	}
+
+	// Create embed JSON structure
+	embed := &discordgo.MessageEmbed{
+		Title:       title,
+		Description: message,
+		Color:       colour,
+		Fields:      []*discordgo.MessageEmbedField{},
+	}
+
+	// Send the message to the specified channel
+	_, err := dg.ChannelMessageSendEmbed(channelID, embed)
+	if err != nil {
+		logger("error", "Error sending message: %s", err)
+	}
+}

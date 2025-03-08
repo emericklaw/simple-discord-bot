@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const applicationVersion string = "v0.7.7"
+const applicationVersion string = "v0.7.8"
 const buildDateTime string = ""
 
 var currentLogLevel string = "notice"
@@ -92,6 +92,8 @@ func main() {
 		logger("emergency", "If _shell_enabled=true, then _shell must be defined")
 		os.Exit(1)
 	}
+
+	initHTTPListener()
 
 	logger("success", "Simple Discord Bot is now running.\nVersion: %s\nBuilt: %s", applicationVersion, buildDateTime)
 
