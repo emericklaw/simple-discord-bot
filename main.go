@@ -14,7 +14,7 @@ import (
 )
 
 const applicationVersion string = "v0.7.6"
-const buildDateTime string = ""
+const buildDateTime string = "2025-03-08 00:58:47"
 
 var currentLogLevel string = "notice"
 var dg *discordgo.Session // Global Discord session
@@ -24,6 +24,8 @@ func init() {
 	versionflag := flag.Bool("version", false, "Display version")
 	helpflag := flag.Bool("help", false, "Display help")
 	displayconfigflag := flag.Bool("displayconfig", false, "Display configuration")
+
+	flag.Parse()
 
 	if *versionflag {
 		fmt.Printf("simple-discord-bot %s\n", applicationVersion)
