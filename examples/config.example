@@ -10,6 +10,7 @@ _canary_url: "http://172.28.0.10:54035/checkin/eeh-bot"
 _shell_enabled: true
 _shell: sh
 _command_key: "!eeh"
+_http_api_port: 12345
 
 commands:
   "wiki":
@@ -132,3 +133,8 @@ discord_reactions:
       message_id: 1234567890
       emoji: "name:3434343434"
       role_id: 2222222222
+
+http_api:
+    12345:
+        channels:
+            - 12345678901234567890

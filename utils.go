@@ -216,3 +216,13 @@ func sliceContainsInt(i []interface{}, str string) bool {
 	}
 	return false
 }
+
+// Helper function to check if a slice contains a value
+func sliceContainsValue(slice []string, value string) bool {
+	for _, v := range slice {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}

@@ -93,6 +93,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	initHTTPListener()
+
 	logger("success", "Simple Discord Bot is now running.\nVersion: %s\nBuilt: %s", applicationVersion, buildDateTime)
 
 	// check tracked reactions
