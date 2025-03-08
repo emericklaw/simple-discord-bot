@@ -123,7 +123,7 @@ func checkAPIRequestIsValid(w http.ResponseWriter, r *http.Request) bool {
 	apiKey := query.Get("apiKey")
 	channelID := query.Get("channelID")
 
-	if viper.IsSet("http_api." + apiKey) {
+	if viper.IsSet("http_api_keys." + apiKey) {
 		logger("debug", "API key is valid")
 	} else {
 		logger("error", "API key %s is invalid", apiKey)
@@ -132,7 +132,7 @@ func checkAPIRequestIsValid(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 
-	if sliceContainsValue(viper.GetStringSlice("http_api."+apiKey+".channels"), channelID) {
+	if sliceContainsValue(viper.GetStringSlice("http_api_keys."+apiKey+".channels"), channelID) {
 		logger("debug", "Channel ID is valid")
 	} else {
 		logger("error", "Channel ID %s is invalid", channelID)

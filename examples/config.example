@@ -134,7 +134,7 @@ discord_reactions:
       emoji: "name:3434343434"
       role_id: 2222222222
 
-http_api:
+http_api_keys:
     12345:
         channels:
             - 12345678901234567890
