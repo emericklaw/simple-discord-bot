@@ -25,6 +25,8 @@ func init() {
 	helpflag := flag.Bool("help", false, "Display help")
 	displayconfigflag := flag.Bool("displayconfig", false, "Display configuration")
 
+	flag.Parse()
+
 	if *versionflag {
 		fmt.Printf("simple-discord-bot %s\n", applicationVersion)
 		os.Exit(0)
