@@ -97,8 +97,12 @@ func main() {
 
 	logger("success", "Simple Discord Bot is now running.\nVersion: %s\nBuilt: %s", applicationVersion, buildDateTime)
 
-	// check tracked reactions
+	// Check tracked reactions
 	checkReactions(dg)
+
+	// Induction check
+	checkInductions(dg)
+	dg.AddHandler(interactionHandler)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)

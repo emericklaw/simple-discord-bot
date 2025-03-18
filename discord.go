@@ -3,9 +3,7 @@ package main
 import (
 	"log"
 	"sort"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/spf13/viper"
@@ -335,4 +333,13 @@ func sendEmbedMessageToDiscord(channelID string, colour int, title string, messa
 	if err != nil {
 		logger("error", "Error sending message: %s", err)
 	}
+}
+
+func hasRole(member *discordgo.Member, roleID string) bool {
+	for _, role := range member.Roles {
+		if role == roleID {
+			return true
+		}
+	}
+	return false
 }
