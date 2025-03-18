@@ -40,7 +40,7 @@ func checkInductions(s *discordgo.Session) {
 }
 
 func createInductionMessage(s *discordgo.Session, requestMessageID string) {
-	logger("warning", "Creating induction message")
+	logger("info", "Creating induction message")
 	inductionRequestChannelID := viper.GetString("discord_inductions.request_channel_id")
 
 	guildID := viper.GetString("_discord_default_server_id")
