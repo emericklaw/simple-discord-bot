@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const applicationVersion string = "v0.7.8"
+const applicationVersion string = "v0.8.0"
 const buildDateTime string = ""
 
 var currentLogLevel string = "notice"
@@ -97,8 +97,12 @@ func main() {
 
 	logger("success", "Simple Discord Bot is now running.\nVersion: %s\nBuilt: %s", applicationVersion, buildDateTime)
 
-	// check tracked reactions
+	// Check tracked reactions
 	checkReactions(dg)
+
+	// Induction check
+	checkInductions(dg)
+	dg.AddHandler(interactionHandler)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
