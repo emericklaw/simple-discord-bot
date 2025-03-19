@@ -47,7 +47,7 @@ func createInductionMessage(s *discordgo.Session, requestMessageID string) {
 
 	members, errMembers := dg.GuildMembers(guildID, "", 1000)
 	if errMembers != nil {
-		logger("error", "Could not fetch guild members %s", err)
+		logger("error", "Could not fetch guild members %s", errMembers)
 	} else {
 		sort.Slice(members, func(i, j int) bool {
 			return members[i].User.GlobalName < members[j].User.GlobalName
