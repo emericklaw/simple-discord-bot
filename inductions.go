@@ -45,14 +45,14 @@ func createInductionMessage(s *discordgo.Session, requestMessageID string) {
 
 	guildID := viper.GetString("_discord_default_server_id")
 
-	members, err := dg.GuildMembers(guildID, "", 1000)
-	if err != nil {
+	members, errMembers := dg.GuildMembers(guildID, "", 1000)
+	if errMembers != nil {
 		logger("error", "Could not fetch guild members %s", err)
-		return
+	} else {
+		sort.Slice(members, func(i, j int) bool {
+			return members[i].User.GlobalName < members[j].User.GlobalName
+		})
 	}
-	sort.Slice(members, func(i, j int) bool {
-		return members[i].User.GlobalName < members[j].User.GlobalName
-	})
 
 	embeds := []*discordgo.MessageEmbed{}
 	fields := []*discordgo.MessageEmbedField{}
@@ -61,11 +61,12 @@ func createInductionMessage(s *discordgo.Session, requestMessageID string) {
 	roles, err := s.GuildRoles(guildID)
 	if err != nil {
 		logger("error", "Error getting guild roles: %s", err)
+	} else {
+		// Sort roles by role.Name
+		sort.Slice(roles, func(i, j int) bool {
+			return roles[i].Name < roles[j].Name
+		})
 	}
-	// Sort roles by role.Name
-	sort.Slice(roles, func(i, j int) bool {
-		return roles[i].Name < roles[j].Name
-	})
 
 	lastCheckedRoleGroup := ""
 	// lastCheckedRoleName := ""
@@ -85,22 +86,24 @@ func createInductionMessage(s *discordgo.Session, requestMessageID string) {
 
 			if strings.Count(role.Name, "-") == 1 {
 
-				membersWithRole := ""
-				for _, member := range members {
-					for _, memberRole := range member.Roles {
-						if memberRole == role.ID {
-							membersWithRole = membersWithRole + "<@" + member.User.ID + ">\n"
-							break
+				if errMembers != nil {
+					membersWithRole := ""
+					for _, member := range members {
+						for _, memberRole := range member.Roles {
+							if memberRole == role.ID {
+								membersWithRole = membersWithRole + "<@" + member.User.ID + ">\n"
+								break
+							}
 						}
 					}
-				}
 
-				newField := &discordgo.MessageEmbedField{
-					Name:   strings.TrimSpace(strings.Split(role.Name, "-")[1]),
-					Value:  membersWithRole,
-					Inline: true,
+					newField := &discordgo.MessageEmbedField{
+						Name:   strings.TrimSpace(strings.Split(role.Name, "-")[1]),
+						Value:  membersWithRole,
+						Inline: true,
+					}
+					fields = append(fields, newField)
 				}
-				fields = append(fields, newField)
 
 				actionButton := discordgo.Button{
 					Label:    strings.TrimSpace(strings.Replace(strings.Split(role.Name, "-")[1], " DISABLED", "", 1)),
@@ -173,16 +176,23 @@ func interactionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		inductionDiscussionChannelID := viper.GetString("discord_inductions.discussion_channel_id")
 		role, _ := dg.State.Role(guildID, i.MessageComponentData().CustomID)
 
-		sendMessageToDiscord(inductionDiscussionChannelID, "<@"+i.Member.User.ID+"> has asked for an induction for "+strings.SplitN(role.Name, " - ", 2)[1]+". Please can someone help them out? <@&"+i.MessageComponentData().CustomID+">")
+		titleText := i.Member.User.GlobalName + " has asked for an induction for " + strings.SplitN(role.Name, " - ", 2)[1]
+		messageText := "<@" + i.Member.User.ID + "> has asked for an induction for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please can someone help them out? <@&" + i.MessageComponentData().CustomID + ">"
+		thread, errT := s.ForumThreadStart(inductionDiscussionChannelID, titleText, 60, messageText)
+		if errT != nil {
+			logger("error", "Error creating induction request thread: %s", errT)
+		}
+
+		logger("info", "Induction request thread created: %s", thread.ID)
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "A request has been made for an induction on the " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please keep an eye out for a reply from someone that can induct you in <#" + inductionDiscussionChannelID + ">",
+				Content: "A request has been made for an induction on the " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please keep an eye out for a reply from someone that can induct you here <#" + thread.ID + ">",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 		if err != nil {
-			panic(err)
+			logger("error", "Error sending induction request response message to user: %s", err)
 		}
 	}
 }
