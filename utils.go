@@ -226,3 +226,11 @@ func sliceContainsValue(slice []string, value string) bool {
 	}
 	return false
 }
+
+// Helper function to check if a string is empty and return a default value
+func isEmptyOrDefault(value string, defaultValue string) string {
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}

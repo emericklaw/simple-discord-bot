@@ -55,7 +55,7 @@ func updateInductionMessage(s *discordgo.Session, requestMessageID string) {
 		logger("error", "Could not fetch guild members %s", errMembers)
 	} else {
 		sort.Slice(members, func(i, j int) bool {
-			return members[i].User.GlobalName < members[j].User.GlobalName
+			return getDiscordDisplayName(members[i]) < getDiscordDisplayName(members[j])
 		})
 	}
 
@@ -215,14 +215,14 @@ func interactionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		inductionDiscussionChannelID := viper.GetString("discord_inductions.request_channel_id")
 		role, _ := dg.State.Role(guildID, i.MessageComponentData().CustomID)
 
-		titleText := i.Member.User.GlobalName + " would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1]
+		titleText := getDiscordDisplayName(i.Member) + " would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1]
 		messageText := "<@" + i.Member.User.ID + "> would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please can someone help them out? <@&" + i.MessageComponentData().CustomID + ">"
 		thread, errT := s.ForumThreadStart(inductionDiscussionChannelID, titleText, 60, messageText)
 		if errT != nil {
 			logger("error", "Error creating induction request thread: %s", errT)
 		}
 
-		logger("debug", "Induction request thread created: %s", thread.ID)
+		logger("debug", "Induction user request thread created: %s", thread.ID)
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{

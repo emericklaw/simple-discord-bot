@@ -358,3 +358,7 @@ func hasRole(member *discordgo.Member, roleID string) bool {
 	}
 	return false
 }
+
+func getDiscordDisplayName(member *discordgo.Member) string {
+	return isEmptyOrDefault(member.Nick, isEmptyOrDefault(member.User.GlobalName, member.User.Username))
+}

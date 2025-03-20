@@ -12,19 +12,16 @@ func logger(logLevel string, format string, args ...interface{}) {
 
 	minLogLevel := currentLogLevel
 
+	logLevelEmoji := getLogLevelEmoji(logLevel)
+
+	// Format the message
+	message := fmt.Sprintf(format, args...)
+
 	if shouldLog(logLevel, minLogLevel) {
 
 		if dg == nil {
 			log.Println("⚠️ Discord session is nil")
 		}
-
-		// Format the string
-		message := fmt.Sprintf(format, args...)
-
-		logLevelEmoji := getLogLevelEmoji(logLevel)
-
-		// Log the error
-		log.Printf(logLevelEmoji+"%s", message)
 
 		if !viper.IsSet("_log_discord_channel_id") {
 			log.Printf(getLogLevelEmoji("emergency") + "No _log_discord_channel_id configured")
@@ -33,6 +30,10 @@ func logger(logLevel string, format string, args ...interface{}) {
 			sendEmbedMessageToDiscord(channelID, getLogLevelColor(logLevel), logLevelEmoji+strings.Title(logLevel), message)
 		}
 	}
+
+	// Always log to the console
+	log.Printf(logLevelEmoji+"%s", message)
+
 }
 
 // Map of log levels to their color codes
@@ -78,7 +79,7 @@ func getLogLevelEmoji(level string) string {
 	emoji, exists := logLevelEmojis[level]
 	if !exists {
 		logger("warning", "Unknown log level: %s. Defaulting to question mark emoji.", level)
-		return "❓ " // Default emoji for unknown log levels
+		emoji = "❓" // Default emoji for unknown log levels
 	}
 	return emoji + " "
 }
