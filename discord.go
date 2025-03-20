@@ -362,3 +362,38 @@ func hasRole(member *discordgo.Member, roleID string) bool {
 func getDiscordDisplayName(member *discordgo.Member) string {
 	return isEmptyOrDefault(member.Nick, isEmptyOrDefault(member.User.GlobalName, member.User.Username))
 }
+
+func addTagToThread(s *discordgo.Session, threadID, tagID string) error {
+	thread, err := s.Channel(threadID)
+	if err != nil {
+		return err
+	}
+
+	// Add the new tag to the existing tags
+	newAppliedTags := append(thread.AppliedTags, tagID)
+
+	_, err = s.ChannelEdit(threadID, &discordgo.ChannelEdit{
+		AppliedTags: &newAppliedTags,
+	})
+	return err
+}
+
+func removeTagFromThread(s *discordgo.Session, threadID, tagID string) error {
+	thread, err := s.Channel(threadID)
+	if err != nil {
+		return err
+	}
+
+	// Filter out the tag to be removed
+	newAppliedTags := []string{}
+	for _, t := range thread.AppliedTags {
+		if t != tagID {
+			newAppliedTags = append(newAppliedTags, t)
+		}
+	}
+
+	_, err = s.ChannelEdit(threadID, &discordgo.ChannelEdit{
+		AppliedTags: &newAppliedTags,
+	})
+	return err
+}

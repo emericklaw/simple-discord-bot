@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const applicationVersion string = "v0.8.4"
+const applicationVersion string = "v0.8.5"
 const buildDateTime string = ""
 
 var currentLogLevel string = "notice"
@@ -97,6 +97,7 @@ func main() {
 	// Induction check
 	checkInductions(dg)
 	dg.AddHandler(interactionHandler)
+	dg.AddHandler(threadUpdate)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
