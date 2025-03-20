@@ -137,6 +137,14 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		if ismessage {
 			messagetosend = prepareTemplate(viper.GetString("commands."+mycommand+".message"), commandoptions)
+
+			// append any mentions to the message
+			for _, value := range commandoptions {
+				if strings.Contains(value, "<@") {
+					messagetosend = messagetosend + " " + value
+				}
+			}
+
 		} else if isapicall {
 			// if an api call do it and get response which will become the message sent to the user
 			messagetosend = downloadApi(prepareTemplate(viper.GetString("commands."+mycommand+".api"), commandoptions))
