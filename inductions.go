@@ -8,43 +8,48 @@ import (
 	"github.com/spf13/viper"
 )
 
-// check inductions
+const inductionRequestThreadTitle string = "How to request an induction for a workshop or tool"
+const inductionRequestThreadMessage string = "Please use the buttons in this message to request an induction for a workshop or a tool. Someone who can induct you will be in touch soon."
+
 func checkInductions(s *discordgo.Session) {
-	logger("info", "Checking inductions")
+	logger("info", "Checking induction request thread")
 	if viper.IsSet("discord_inductions.request_message_id") {
-		inductionRequestChannelID := viper.GetString("discord_inductions.request_channel_id")
 		requestMessageID := viper.GetString("discord_inductions.request_message_id")
-		_, err := dg.ChannelMessage(inductionRequestChannelID, requestMessageID)
+
+		_, err := dg.ChannelMessage(requestMessageID, requestMessageID)
 
 		if err != nil {
-			if err.(*discordgo.RESTError).Message.Code == 10008 {
+			if err.(*discordgo.RESTError).Message.Code == 10008 || err.(*discordgo.RESTError).Message.Code == 0 || err.(*discordgo.RESTError).Message.Code == 10003 {
 				logger("warning", "Induction request message not found")
-				createInductionMessage(s, "")
+				updateInductionMessage(s, "")
 				return
 			} else {
-				logger("error", "Error finding induction request message: %s", err)
+				logger("error", "Could not find induction request message: %s", err)
 			}
 		}
 
-		createInductionMessage(s, requestMessageID)
-		if err != nil {
-			logger("error", "Error editing induction request message: %s", err)
-		}
+		updateInductionMessage(s, requestMessageID)
 
 	} else {
 		logger("warning", "No induction request message found")
-
-		createInductionMessage(s, "")
-
+		updateInductionMessage(s, "")
 	}
 }
 
-func createInductionMessage(s *discordgo.Session, requestMessageID string) {
-	logger("info", "Creating induction message")
+func checkInductionsCommand(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+	checkInductions(s)
+	logger("warning", "Induction request thread checked")
+	privateMessageCreate(s, m.Author.ID, "Induction request thread updated", false)
+}
+
+func updateInductionMessage(s *discordgo.Session, requestMessageID string) {
+	logger("info", "Updating induction request thread")
+
 	inductionRequestChannelID := viper.GetString("discord_inductions.request_channel_id")
 
 	guildID := viper.GetString("_discord_default_server_id")
 
+	logger("debug", "Getting members")
 	members, errMembers := dg.GuildMembers(guildID, "", 1000)
 	if errMembers != nil {
 		logger("error", "Could not fetch guild members %s", errMembers)
@@ -54,10 +59,7 @@ func createInductionMessage(s *discordgo.Session, requestMessageID string) {
 		})
 	}
 
-	embeds := []*discordgo.MessageEmbed{}
-	fields := []*discordgo.MessageEmbedField{}
-	components := []discordgo.MessageComponent{}
-
+	logger("debug", "Getting roles")
 	roles, err := s.GuildRoles(guildID)
 	if err != nil {
 		logger("error", "Error getting guild roles: %s", err)
@@ -68,10 +70,14 @@ func createInductionMessage(s *discordgo.Session, requestMessageID string) {
 		})
 	}
 
+	embeds := []*discordgo.MessageEmbed{}
+	fields := []*discordgo.MessageEmbedField{}
+	components := []discordgo.MessageComponent{}
+
 	lastCheckedRoleGroup := ""
-	// lastCheckedRoleName := ""
 	actionRow := discordgo.ActionsRow{}
 
+	logger("debug", "Checking roles")
 	for _, role := range roles {
 		if strings.HasPrefix(role.Name, "Induction -") {
 
@@ -86,7 +92,7 @@ func createInductionMessage(s *discordgo.Session, requestMessageID string) {
 
 			if strings.Count(role.Name, "-") == 1 {
 
-				if errMembers != nil {
+				if errMembers == nil {
 					membersWithRole := ""
 					for _, member := range members {
 						for _, memberRole := range member.Roles {
@@ -128,44 +134,77 @@ func createInductionMessage(s *discordgo.Session, requestMessageID string) {
 	// add last action row
 	components = append(components, actionRow)
 
-	embeds = append(embeds, &discordgo.MessageEmbed{
-		Title:       "Induction Requests",
-		Description: "Please use the buttons below to request an induction on a workshop or a tool and someone who can induct you will be in touch soon.",
-		Fields:      fields,
-		Color:       0xCF142B,
-	})
+	if errMembers == nil {
+		embeds = append(embeds, &discordgo.MessageEmbed{
+			Title:  "Inductors",
+			Fields: fields,
+			Color:  0xCF142B,
+		})
+	}
 
 	if requestMessageID != "" {
-		// Edit existing message
+		logger("info", "Editing induction request thread")
+
 		message := discordgo.MessageEdit{
 			ID:         requestMessageID,
-			Channel:    inductionRequestChannelID,
+			Channel:    requestMessageID,
 			Embeds:     &embeds,
 			Components: &components,
 		}
 
-		_, err := s.ChannelMessageEditComplex(&message)
+		_, err = dg.ChannelEdit(requestMessageID, &discordgo.ChannelEdit{
+			Name: inductionRequestThreadTitle,
+		})
 		if err != nil {
-			logger("error", "Error creating induction request message: %s", err)
+			logger("error", "Could not edit induction request thread title: %v", err)
 		}
 
-	} else {
-		// Send the message to the specified channel
+		_, err := s.ChannelMessageEditComplex(&message)
+		if err != nil {
+			logger("error", "Could not edit induction request message: %s", err)
+		}
 
+		logger("info", "Edited induction request thread")
+
+	} else {
+
+		logger("info", "Creating induction request thread")
+
+		threadData := discordgo.ThreadStart{
+			Name:                inductionRequestThreadTitle,
+			AutoArchiveDuration: 60,
+			Type:                13,
+		}
 		message := discordgo.MessageSend{
+			Content:    inductionRequestThreadMessage,
 			Embeds:     embeds,
 			Components: components,
 		}
 
-		msg, err := s.ChannelMessageSendComplex(inductionRequestChannelID, &message)
+		msg, err := s.ForumThreadStartComplex(inductionRequestChannelID, &threadData, &message)
+		// msg, err := s.ChannelMessageSendComplex(inductionRequestChannelID, &message)
 		if err != nil {
 			logger("error", "Error creating induction request message: %s", err)
 		}
-		msgID := msg.ID
 
-		viper.Set("discord_inductions.request_message_id", msgID)
+		requestMessageID = msg.ID
+
+		viper.Set("discord_inductions.request_message_id", requestMessageID)
 		viper.WriteConfig()
+
+		logger("info", "Created induction request thread")
+
 	}
+
+	logger("info", "Pinning induction request thread")
+	threadFlags := discordgo.ChannelFlagPinned
+	_, err = dg.ChannelEdit(requestMessageID, &discordgo.ChannelEdit{
+		Flags: &threadFlags,
+	})
+	if err != nil {
+		logger("error", "Could not pin induction request thread: %v", err)
+	}
+
 }
 
 func interactionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -173,21 +212,21 @@ func interactionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	case discordgo.InteractionMessageComponent:
 
 		guildID := viper.GetString("_discord_default_server_id")
-		inductionDiscussionChannelID := viper.GetString("discord_inductions.discussion_channel_id")
+		inductionDiscussionChannelID := viper.GetString("discord_inductions.request_channel_id")
 		role, _ := dg.State.Role(guildID, i.MessageComponentData().CustomID)
 
-		titleText := i.Member.User.GlobalName + " has asked for an induction for " + strings.SplitN(role.Name, " - ", 2)[1]
-		messageText := "<@" + i.Member.User.ID + "> has asked for an induction for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please can someone help them out? <@&" + i.MessageComponentData().CustomID + ">"
+		titleText := i.Member.User.GlobalName + " would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1]
+		messageText := "<@" + i.Member.User.ID + "> would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please can someone help them out? <@&" + i.MessageComponentData().CustomID + ">"
 		thread, errT := s.ForumThreadStart(inductionDiscussionChannelID, titleText, 60, messageText)
 		if errT != nil {
 			logger("error", "Error creating induction request thread: %s", errT)
 		}
 
-		logger("info", "Induction request thread created: %s", thread.ID)
+		logger("debug", "Induction request thread created: %s", thread.ID)
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "A request has been made for an induction on the " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please keep an eye out for a reply from someone that can induct you here <#" + thread.ID + ">",
+				Content: "A induction request has been made for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please keep an eye out for a reply from someone that can induct you here <#" + thread.ID + ">",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})

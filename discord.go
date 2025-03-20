@@ -197,6 +197,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 				"showVersion":      showVersion,
 				"logLevelSet":      logLevelSet,
 				"logLevelShow":     logLevelShow,
+				"loadConfig":       loadConfigCommand,
+				"checkInductions":  checkInductionsCommand,
 			}
 
 			// Call the function based on the name

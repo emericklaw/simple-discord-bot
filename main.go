@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const applicationVersion string = "v0.8.1"
+const applicationVersion string = "v0.8.2"
 const buildDateTime string = ""
 
 var currentLogLevel string = "notice"
@@ -52,13 +52,7 @@ func init() {
 
 	viper.SetConfigName(config)
 
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			logger("emergency", "Config file not found")
-		} else {
-			logger("emergency", "Config file was found but another error was discovered: ", err)
-		}
-	}
+	loadConfig()
 
 	if *displayconfigflag {
 		displayConfig()
