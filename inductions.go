@@ -172,7 +172,7 @@ func updateInductionMessage(s *discordgo.Session, requestMessageID string) {
 
 		threadData := discordgo.ThreadStart{
 			Name:                inductionRequestThreadTitle,
-			AutoArchiveDuration: 60,
+			AutoArchiveDuration: 60 * 24 * 7,
 			Type:                13,
 		}
 		message := discordgo.MessageSend{
@@ -182,7 +182,6 @@ func updateInductionMessage(s *discordgo.Session, requestMessageID string) {
 		}
 
 		msg, err := s.ForumThreadStartComplex(inductionRequestChannelID, &threadData, &message)
-		// msg, err := s.ChannelMessageSendComplex(inductionRequestChannelID, &message)
 		if err != nil {
 			logger("error", "Error creating induction request message: %s", err)
 		}
@@ -212,12 +211,25 @@ func interactionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	case discordgo.InteractionMessageComponent:
 
 		guildID := viper.GetString("_discord_default_server_id")
-		inductionDiscussionChannelID := viper.GetString("discord_inductions.request_channel_id")
+		inductionRequestChannelID := viper.GetString("discord_inductions.request_channel_id")
 		role, _ := dg.State.Role(guildID, i.MessageComponentData().CustomID)
 
 		titleText := getDiscordDisplayName(i.Member) + " would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1]
 		messageText := "<@" + i.Member.User.ID + "> would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please can someone help them out? <@&" + i.MessageComponentData().CustomID + ">"
-		thread, errT := s.ForumThreadStart(inductionDiscussionChannelID, titleText, 60, messageText)
+
+		outstandingTagID := viper.GetString("discord_inductions.outstanding_tag_id")
+
+		threadData := discordgo.ThreadStart{
+			Name:                titleText,
+			AutoArchiveDuration: 60 * 24 * 7,
+			Type:                13,
+			AppliedTags:         []string{outstandingTagID},
+		}
+		message := discordgo.MessageSend{
+			Content: messageText,
+		}
+
+		thread, errT := s.ForumThreadStartComplex(inductionRequestChannelID, &threadData, &message)
 		if errT != nil {
 			logger("error", "Error creating induction request thread: %s", errT)
 		}
@@ -232,6 +244,47 @@ func interactionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		})
 		if err != nil {
 			logger("error", "Error sending induction request response message to user: %s", err)
+		}
+	}
+}
+
+// Event handler for ThreadUpdate
+func threadUpdate(s *discordgo.Session, event *discordgo.ThreadUpdate) {
+
+	logger("debug", "ThreadUpdate event received")
+	if event.Channel.Type == discordgo.ChannelTypeGuildPublicThread || event.Channel.Type == discordgo.ChannelTypeGuildPrivateThread {
+
+		// Check if the parent channel is the induction request channel
+		logger("debug", "ThreadUpdate event is a thread")
+		if event.Channel.ParentID == viper.GetString("discord_inductions.request_channel_id") {
+			logger("debug", "ThreadUpdate event is in the induction request channel")
+
+			// Check if the updated thread is not the induction request message thread
+			if event.Channel.ID != viper.GetString("discord_inductions.request_message_id") {
+				added, removed := diffArrays(event.BeforeUpdate.AppliedTags, event.Channel.AppliedTags)
+				logger("debug", "ThreadUpdate Added Tags: %s", added)
+				logger("debug", "ThreadUpdate Removed Tags: %s", removed)
+				if sliceContainsValue(added, viper.GetString("discord_inductions.completed_tag_id")) {
+					logger("info", "Induction thread marked as completed")
+
+					err := removeTagFromThread(dg, event.Channel.ID, viper.GetString("discord_inductions.outstanding_tag_id"))
+					if err != nil {
+						logger("error", "Could not remove tag from thread ThreadID: %s\nError: %s", event.Channel.ID, err)
+					} else {
+						logger("info", "Tag removed successfully")
+					}
+
+					threadArchived := true
+					_, err = s.ChannelEdit(event.Channel.ID, &discordgo.ChannelEdit{
+						Archived: &threadArchived,
+					})
+					if err != nil {
+						logger("error", "Could not close thread ThreadID: %s\nError: %s", event.Channel.ID, err)
+					} else {
+						logger("info", "Thread closed successfully")
+					}
+				}
+			}
 		}
 	}
 }

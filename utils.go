@@ -234,3 +234,28 @@ func isEmptyOrDefault(value string, defaultValue string) string {
 	}
 	return value
 }
+
+// Helper function to compare two arrays and return the added and removed elements
+func diffArrays[T comparable](oldArray []T, newArray []T) (added []T, removed []T) {
+	oldMap := make(map[T]bool)
+	newMap := make(map[T]bool)
+
+	for _, v := range oldArray {
+		oldMap[v] = true
+	}
+
+	for _, v := range newArray {
+		newMap[v] = true
+		if !oldMap[v] {
+			added = append(added, v)
+		}
+	}
+
+	for _, v := range oldArray {
+		if !newMap[v] {
+			removed = append(removed, v)
+		}
+	}
+
+	return added, removed
+}
