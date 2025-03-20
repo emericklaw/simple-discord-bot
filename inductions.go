@@ -222,7 +222,7 @@ func interactionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			logger("error", "Error creating induction request thread: %s", errT)
 		}
 
-		logger("debug", "Induction request thread created: %s", thread.ID)
+		logger("debug", "Induction user request thread created: %s", thread.ID)
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
