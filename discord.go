@@ -113,6 +113,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		isshell := viper.IsSet("commands." + mycommand + ".shell")
 		isfunction := viper.IsSet("commands." + mycommand + ".function")
 		issecret := viper.GetBool("commands." + mycommand + ".secret")
+		isdeletecommandmessage := viper.GetBool("commands." + mycommand + ".deletecommandmessage")
 
 		// if api and file then return and throw an error, this is not a valid option configuration
 		if isapicall && isfile {
@@ -214,6 +215,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		if isshell || isfile {
 			usewrapper = true
+		}
+
+		if isdeletecommandmessage {
+			s.ChannelMessageDelete(m.ChannelID, m.ID)
 		}
 
 		// send the command response, if marked as secret send via private message do not send if command is a custom function
