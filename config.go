@@ -4,8 +4,26 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/spf13/viper"
 )
+
+// loads configuration
+func loadConfig() {
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			logger("emergency", "Config file not found")
+		} else {
+			logger("emergency", "Config file was found but another error was discovered: ", err)
+		}
+	}
+}
+
+func loadConfigCommand(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+	loadConfig()
+	logger("warning", "Configuration has been reloaded")
+	privateMessageCreate(s, m.Author.ID, "Configuration has been reloaded", false)
+}
 
 // displays configuration
 func displayConfig() {

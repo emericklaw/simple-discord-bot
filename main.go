@@ -52,13 +52,7 @@ func init() {
 
 	viper.SetConfigName(config)
 
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			logger("emergency", "Config file not found")
-		} else {
-			logger("emergency", "Config file was found but another error was discovered: ", err)
-		}
-	}
+	loadConfig()
 
 	if *displayconfigflag {
 		displayConfig()
