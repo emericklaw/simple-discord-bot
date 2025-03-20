@@ -18,6 +18,7 @@ commands:
     message: "https://eehack.space"
     roles:
       - all
+    deletecommandmessage: true
   "web":
     help: "Website"
     message: "https://eehack.space"
