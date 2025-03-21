@@ -264,9 +264,14 @@ func threadUpdate(s *discordgo.Session, event *discordgo.ThreadUpdate) {
 				added, removed := diffArrays(event.BeforeUpdate.AppliedTags, event.Channel.AppliedTags)
 				logger("debug", "ThreadUpdate Added Tags: %s", added)
 				logger("debug", "ThreadUpdate Removed Tags: %s", removed)
+				if sliceContainsValue(added, viper.GetString("discord_inductions.booked_tag_id")) {
+					logger("info", "Induction thread marked as booked")
+				}
 				if sliceContainsValue(added, viper.GetString("discord_inductions.completed_tag_id")) {
 					logger("info", "Induction thread marked as completed")
+				}
 
+				if sliceContainsValue(added, viper.GetString("discord_inductions.booked_tag_id")) || sliceContainsValue(added, viper.GetString("discord_inductions.completed_tag_id")) {
 					err := removeTagFromThread(dg, event.Channel.ID, viper.GetString("discord_inductions.outstanding_tag_id"))
 					if err != nil {
 						logger("error", "Could not remove tag from thread ThreadID: %s\nError: %s", event.Channel.ID, err)
@@ -274,8 +279,10 @@ func threadUpdate(s *discordgo.Session, event *discordgo.ThreadUpdate) {
 						logger("info", "Tag removed successfully")
 					}
 
+				}
+				if sliceContainsValue(added, viper.GetString("discord_inductions.completed_tag_id")) {
 					threadArchived := true
-					_, err = s.ChannelEdit(event.Channel.ID, &discordgo.ChannelEdit{
+					_, err := s.ChannelEdit(event.Channel.ID, &discordgo.ChannelEdit{
 						Archived: &threadArchived,
 					})
 					if err != nil {
