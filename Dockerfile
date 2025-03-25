@@ -2,6 +2,8 @@ FROM alpine:latest
 
 RUN apk add --no-cache tzdata
 
+RUN apk add --no-cache python3
+
 RUN apk add --update-cache \
   tzdata \
   bash \
