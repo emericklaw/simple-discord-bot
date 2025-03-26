@@ -53,30 +53,31 @@ func downloadApi(url string) string {
 
 		return string(body)
 	} else {
-		logger("error", "Could not make API request "+url+" HTTPStatus: "+string(resp.StatusCode))
+		logger("error", "Could not make API request "+url+" HTTPStatus: "+strconv.Itoa(resp.StatusCode))
 		return "Could not make API request"
 	}
 }
 
 // runs a shell command and gathers output
-func shellOut(command string) (error, string, string) {
+func shellOut(command string) (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(viper.GetString("_shell"), "-c", command)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
-	return err, stdout.String(), stderr.String()
+	return stdout.String(), stderr.String(), err
 }
 
 // splits (chunks) a message
-func chunkMessage(message string, delimchar string, max int) map[int]string {
+func chunkMessage(message string, max int) map[int]string {
 	sS := 0
 	finished := false
 	n := 0
+	delimchar := "\n"
 	messagemap := make(map[int]string)
 
-	for finished == false {
+	for !finished {
 		if sS >= len(message) {
 			break
 		}

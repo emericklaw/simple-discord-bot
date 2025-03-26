@@ -13,11 +13,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-const applicationVersion string = "v0.8.6"
+const applicationVersion string = "v0.8.7"
 const buildDateTime string = ""
 
 var currentLogLevel string = "notice"
 var dg *discordgo.Session // Global Discord session
+var discordConnected bool = false
 
 func init() {
 	configfileflag := flag.String("config", "config.yaml", "Configuration file: /path/to/file.yaml, default = ./config.yaml")
@@ -91,17 +92,10 @@ func main() {
 
 	logger("success", "Simple Discord Bot is now running.\nVersion: %s\nBuilt: %s", applicationVersion, buildDateTime)
 
-	// Check tracked reactions
-	checkReactions(dg)
-
-	// Induction check
-	checkInductions(dg)
-	dg.AddHandler(interactionHandler)
-	dg.AddHandler(threadUpdate)
-
 	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
+	// Cleanly close down the Discord session.
 	dg.Close()
 }

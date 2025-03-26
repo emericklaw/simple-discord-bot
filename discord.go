@@ -21,21 +21,37 @@ func initDiscord() error {
 		return err
 	}
 
+	//dg.LogLevel = discordgo.LogDebug
 	logger("debug", "Discord session object created")
+
+	dg.AddHandler(interactionHandler)
+	dg.AddHandler(threadUpdate)
+	dg.AddHandler(messageCreate)
+	dg.AddHandler(addReaction)
+	dg.AddHandler(removeReaction)
+	dg.AddHandler(ready)
 
 	err = dg.Open()
 	if err != nil {
 		logger("emergency", "Unable to open Discord connection: %s", err)
 		return err
 	}
+	defer dg.Close()
 
 	logger("info", "Bot is connected to Discord!")
 
-	dg.AddHandler(messageCreate)
-	dg.AddHandler(addReaction)
-	dg.AddHandler(removeReaction)
-
 	return nil
+}
+
+func ready(s *discordgo.Session, event *discordgo.Ready) {
+	discordConnected = true
+
+	// Check Reactions
+	checkReactions(dg)
+
+	// Induction check
+	checkInductions(dg)
+
 }
 
 // discord message handler
@@ -159,7 +175,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 			messagetosend = tempcontents
 		} else if isshell && viper.GetBool("_shell_enabled") {
-			err, stdout, stderr := shellOut(prepareTemplate(viper.GetString("commands."+mycommand+".shell"), commandoptions))
+			stdout, stderr, err := shellOut(prepareTemplate(viper.GetString("commands."+mycommand+".shell"), commandoptions))
 			if err != nil {
 				logger("error", "Error executing command: \"%s\" err: %v", messagetosend, err)
 			}
@@ -258,11 +274,11 @@ func privateMessageCreate(s *discordgo.Session, userid string, message string, c
 	}
 
 	if len(message) > viper.GetInt("_discord_message_chunk_size") {
-		messagechunks := chunkMessage(message, viper.GetString("_discord_message_split_char"), viper.GetInt("_discord_message_chunk_size"))
+		messagechunks := chunkMessage(message, viper.GetInt("_discord_message_chunk_size"))
 
 		var allkeys []int
 
-		for k, _ := range messagechunks {
+		for k := range messagechunks {
 			allkeys = append(allkeys, k)
 		}
 
@@ -270,7 +286,9 @@ func privateMessageCreate(s *discordgo.Session, userid string, message string, c
 
 		for _, key := range allkeys {
 			_, err = s.ChannelMessageSend(channel.ID, wrapper+messagechunks[key]+wrapper)
-			// todo: catch errors here
+			if err != nil {
+				logger("error", "Cannot send message to %s with %s", channel.ID, err)
+			}
 		}
 
 	} else {
@@ -294,16 +312,18 @@ func channelMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate, mess
 	var err error
 
 	if len(message) > viper.GetInt("_discord_message_chunk_size") {
-		messagechunks := chunkMessage(message, viper.GetString("_discord_message_split_char"), viper.GetInt("_discord_message_chunk_size"))
+		messagechunks := chunkMessage(message, viper.GetInt("_discord_message_chunk_size"))
 		var allkeys []int
-		for k, _ := range messagechunks {
+		for k := range messagechunks {
 			allkeys = append(allkeys, k)
 		}
 		sort.Ints(allkeys[:])
 
 		for _, key := range allkeys {
 			_, err = s.ChannelMessageSend(m.ChannelID, wrapper+messagechunks[key]+wrapper)
-			// todo: handle error
+			if err != nil {
+				logger("error", "Cannot send message to channel: %s", err)
+			}
 		}
 
 	} else {

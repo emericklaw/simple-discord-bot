@@ -47,7 +47,7 @@ func makeHomeAssistantAPIRequest(param string) {
 	// Create a new HTTP request
 	req, err := http.NewRequest("POST", url+param, ioutil.NopCloser(bytes.NewBuffer(payload)))
 	if err != nil {
-		logger("error", "Error creating request:", err)
+		logger("error", "Error creating request: %s", err)
 		return
 	}
 
@@ -59,7 +59,7 @@ func makeHomeAssistantAPIRequest(param string) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		logger("error", "Error sending request:", err)
+		logger("error", "Error sending request: %s", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -67,10 +67,10 @@ func makeHomeAssistantAPIRequest(param string) {
 	// Read and print the response body
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		logger("error", "Error reading response:", err)
+		logger("error", "Error reading response: %s", err)
 		return
 	}
 
-	logger("info", "Response:", string(body))
+	logger("info", "Response: %s", string(body))
 
 }
