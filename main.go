@@ -18,6 +18,7 @@ const buildDateTime string = ""
 
 var currentLogLevel string = "notice"
 var dg *discordgo.Session // Global Discord session
+var discordConnected bool = false
 
 func init() {
 	configfileflag := flag.String("config", "config.yaml", "Configuration file: /path/to/file.yaml, default = ./config.yaml")

@@ -17,6 +17,9 @@ func logger(logLevel string, format string, args ...interface{}) {
 	// Format the message
 	message := fmt.Sprintf(format, args...)
 
+	// Always log to the console
+	log.Printf(logLevelEmoji+"%s", message)
+
 	if shouldLog(logLevel, minLogLevel) {
 
 		if dg == nil {
@@ -26,14 +29,14 @@ func logger(logLevel string, format string, args ...interface{}) {
 		if !viper.IsSet("_log_discord_channel_id") {
 			log.Printf(getLogLevelEmoji("emergency") + "No _log_discord_channel_id configured")
 		} else {
-			channelID := viper.GetString("_log_discord_channel_id")
-			sendEmbedMessageToDiscord(channelID, getLogLevelColor(logLevel), logLevelEmoji+strings.Title(logLevel), message)
+			if discordConnected {
+				channelID := viper.GetString("_log_discord_channel_id")
+				sendEmbedMessageToDiscord(channelID, getLogLevelColor(logLevel), logLevelEmoji+strings.Title(logLevel), message)
+			} else {
+				log.Println("⚠️ Discord is not connected - only logging to console")
+			}
 		}
 	}
-
-	// Always log to the console
-	log.Printf(logLevelEmoji+"%s", message)
-
 }
 
 // Map of log levels to their color codes
