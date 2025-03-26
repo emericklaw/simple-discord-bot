@@ -65,7 +65,7 @@ func getColour(query url.Values) (int, error) {
 
 // General function to handle both message types
 func handleMessage(w http.ResponseWriter, r *http.Request, isEmbed bool) {
-	if checkAPIRequestIsValid(w, r) == false {
+	if !checkAPIRequestIsValid(w, r) {
 		return
 	}
 

@@ -278,7 +278,7 @@ func privateMessageCreate(s *discordgo.Session, userid string, message string, c
 
 		var allkeys []int
 
-		for k, _ := range messagechunks {
+		for k := range messagechunks {
 			allkeys = append(allkeys, k)
 		}
 
@@ -286,7 +286,9 @@ func privateMessageCreate(s *discordgo.Session, userid string, message string, c
 
 		for _, key := range allkeys {
 			_, err = s.ChannelMessageSend(channel.ID, wrapper+messagechunks[key]+wrapper)
-			// todo: catch errors here
+			if err != nil {
+				logger("error", "Cannot send message to %s with %s", channel.ID, err)
+			}
 		}
 
 	} else {
@@ -312,14 +314,16 @@ func channelMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate, mess
 	if len(message) > viper.GetInt("_discord_message_chunk_size") {
 		messagechunks := chunkMessage(message, viper.GetInt("_discord_message_chunk_size"))
 		var allkeys []int
-		for k, _ := range messagechunks {
+		for k := range messagechunks {
 			allkeys = append(allkeys, k)
 		}
 		sort.Ints(allkeys[:])
 
 		for _, key := range allkeys {
 			_, err = s.ChannelMessageSend(m.ChannelID, wrapper+messagechunks[key]+wrapper)
-			// todo: handle error
+			if err != nil {
+				logger("error", "Cannot send message to channel: %s", err)
+			}
 		}
 
 	} else {

@@ -77,7 +77,7 @@ func chunkMessage(message string, max int) map[int]string {
 	delimchar := "\n"
 	messagemap := make(map[int]string)
 
-	for finished == false {
+	for !finished {
 		if sS >= len(message) {
 			break
 		}
