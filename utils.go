@@ -70,10 +70,11 @@ func shellOut(command string) (string, string, error) {
 }
 
 // splits (chunks) a message
-func chunkMessage(message string, delimchar string, max int) map[int]string {
+func chunkMessage(message string, max int) map[int]string {
 	sS := 0
 	finished := false
 	n := 0
+	delimchar := "\n"
 	messagemap := make(map[int]string)
 
 	for finished == false {

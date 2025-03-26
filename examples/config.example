@@ -1,7 +1,6 @@
 _discord_token: aaaaaBBBBBBBcccccDDDDDD
 _discord_default_server_id: 123123123123123123
 _discord_message_chunk_size: 1980
-_discord_message_split_char: \\n
 _log_discord_channel_id: 1347658478168309761
 _log_level: error
 _canary_enabled: true

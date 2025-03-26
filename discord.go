@@ -274,7 +274,7 @@ func privateMessageCreate(s *discordgo.Session, userid string, message string, c
 	}
 
 	if len(message) > viper.GetInt("_discord_message_chunk_size") {
-		messagechunks := chunkMessage(message, viper.GetString("_discord_message_split_char"), viper.GetInt("_discord_message_chunk_size"))
+		messagechunks := chunkMessage(message, viper.GetInt("_discord_message_chunk_size"))
 
 		var allkeys []int
 
@@ -310,7 +310,7 @@ func channelMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate, mess
 	var err error
 
 	if len(message) > viper.GetInt("_discord_message_chunk_size") {
-		messagechunks := chunkMessage(message, viper.GetString("_discord_message_split_char"), viper.GetInt("_discord_message_chunk_size"))
+		messagechunks := chunkMessage(message, viper.GetInt("_discord_message_chunk_size"))
 		var allkeys []int
 		for k, _ := range messagechunks {
 			allkeys = append(allkeys, k)
