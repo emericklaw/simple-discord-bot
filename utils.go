@@ -59,14 +59,14 @@ func downloadApi(url string) string {
 }
 
 // runs a shell command and gathers output
-func shellOut(command string) (error, string, string) {
+func shellOut(command string) (string, string, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd := exec.Command(viper.GetString("_shell"), "-c", command)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	err := cmd.Run()
-	return err, stdout.String(), stderr.String()
+	return stdout.String(), stderr.String(), err
 }
 
 // splits (chunks) a message

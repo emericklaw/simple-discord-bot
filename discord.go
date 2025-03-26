@@ -175,7 +175,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 			messagetosend = tempcontents
 		} else if isshell && viper.GetBool("_shell_enabled") {
-			err, stdout, stderr := shellOut(prepareTemplate(viper.GetString("commands."+mycommand+".shell"), commandoptions))
+			stdout, stderr, err := shellOut(prepareTemplate(viper.GetString("commands."+mycommand+".shell"), commandoptions))
 			if err != nil {
 				logger("error", "Error executing command: \"%s\" err: %v", messagetosend, err)
 			}
