@@ -1,13 +1,4 @@
-FROM alpine:latest
-
-RUN apk add --no-cache tzdata
-
-RUN apk add --no-cache python3
-
-RUN apk add --update-cache \
-  tzdata \
-  bash \
-  && rm -rf /var/cache/apk/*
+FROM ubuntu:24.04
 
 COPY simple-discord-bot /app/
 CMD ["/app/simple-discord-bot", "--config", "/config/config.yaml"]
