@@ -53,7 +53,7 @@ func downloadApi(url string) string {
 
 		return string(body)
 	} else {
-		logger("error", "Could not make API request "+url+" HTTPStatus: "+string(resp.StatusCode))
+		logger("error", "Could not make API request "+url+" HTTPStatus: "+strconv.Itoa(resp.StatusCode))
 		return "Could not make API request"
 	}
 }

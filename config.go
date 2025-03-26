@@ -14,7 +14,7 @@ func loadConfig() {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			logger("emergency", "Config file not found")
 		} else {
-			logger("emergency", "Config file was found but another error was discovered: ", err)
+			logger("emergency", "Config file was found but another error was discovered: %s", err)
 		}
 	}
 }
