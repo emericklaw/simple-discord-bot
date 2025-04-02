@@ -4,6 +4,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/spf13/viper"
@@ -44,13 +45,19 @@ func initDiscord() error {
 }
 
 func ready(s *discordgo.Session, event *discordgo.Ready) {
-	discordConnected = true
+	go func() {
+		// Wait for 5 seconds to let Discord initialise
+		// This is a workaround for the fact that Discord sometimes takes a while to be ready
+		time.Sleep(5 * time.Second)
 
-	// Check Reactions
-	checkReactions(dg)
+		discordConnected = true
 
-	// Induction check
-	checkInductions(dg)
+		// Check Reactions
+		checkReactions(dg)
+
+		// Induction check
+		checkInductions(dg)
+	}()
 
 }
 
