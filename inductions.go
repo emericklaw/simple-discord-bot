@@ -262,8 +262,6 @@ func threadUpdate(s *discordgo.Session, event *discordgo.ThreadUpdate) {
 
 			// Check if the updated thread is not the induction request message thread
 			if event.Channel.ID != viper.GetString("discord_inductions.request_message_id") {
-				logger("debug", "event.BeforeUpdate.AppliedTags: %s", event.BeforeUpdate.AppliedTags)
-				logger("debug", "event.Channel.AppliedTags: %s", event.Channel.AppliedTags)
 				added, removed, existing := diffArrays(event.BeforeUpdate.AppliedTags, event.Channel.AppliedTags)
 				logger("debug", "ThreadUpdate Added Tags: %s", added)
 				logger("debug", "ThreadUpdate Removed Tags: %s", removed)

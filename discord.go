@@ -25,19 +25,18 @@ func initDiscord() error {
 	//dg.LogLevel = discordgo.LogDebug
 	logger("debug", "Discord session object created")
 
+	dg.AddHandler(ready)
 	dg.AddHandler(interactionHandler)
 	dg.AddHandler(threadUpdate)
 	dg.AddHandler(messageCreate)
 	dg.AddHandler(addReaction)
 	dg.AddHandler(removeReaction)
-	dg.AddHandler(ready)
 
 	err = dg.Open()
 	if err != nil {
 		logger("emergency", "Unable to open Discord connection: %s", err)
 		return err
 	}
-	defer dg.Close()
 
 	logger("info", "Bot is connected to Discord!")
 
@@ -51,6 +50,8 @@ func ready(s *discordgo.Session, event *discordgo.Ready) {
 		time.Sleep(5 * time.Second)
 
 		discordConnected = true
+
+		logger("success", "Simple Discord Bot is now running.\nVersion: %s\nBuilt: %s", applicationVersion, buildDateTime)
 
 		// Check Reactions
 		checkReactions(dg)
