@@ -236,8 +236,8 @@ func isEmptyOrDefault(value string, defaultValue string) string {
 	return value
 }
 
-// Helper function to compare two arrays and return the added and removed elements
-func diffArrays[T comparable](oldArray []T, newArray []T) (added []T, removed []T) {
+// Helper function to compare two arrays and return the added, removed, and existing elements
+func diffArrays[T comparable](oldArray []T, newArray []T) (added []T, removed []T, existing []T) {
 	oldMap := make(map[T]bool)
 	newMap := make(map[T]bool)
 
@@ -249,6 +249,8 @@ func diffArrays[T comparable](oldArray []T, newArray []T) (added []T, removed []
 		newMap[v] = true
 		if !oldMap[v] {
 			added = append(added, v)
+		} else {
+			existing = append(existing, v)
 		}
 	}
 
@@ -258,5 +260,5 @@ func diffArrays[T comparable](oldArray []T, newArray []T) (added []T, removed []
 		}
 	}
 
-	return added, removed
+	return added, removed, existing
 }
