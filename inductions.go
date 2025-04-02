@@ -251,6 +251,7 @@ func interactionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 // Event handler for ThreadUpdate
 func threadUpdate(s *discordgo.Session, event *discordgo.ThreadUpdate) {
 
+	logger("debug", "ThreadUpdate event: %+v", event.Channel)
 	logger("debug", "ThreadUpdate event received")
 	if event.Channel.Type == discordgo.ChannelTypeGuildPublicThread || event.Channel.Type == discordgo.ChannelTypeGuildPrivateThread {
 
@@ -261,25 +262,26 @@ func threadUpdate(s *discordgo.Session, event *discordgo.ThreadUpdate) {
 
 			// Check if the updated thread is not the induction request message thread
 			if event.Channel.ID != viper.GetString("discord_inductions.request_message_id") {
-				added, removed := diffArrays(event.BeforeUpdate.AppliedTags, event.Channel.AppliedTags)
+				logger("debug", "event.BeforeUpdate.AppliedTags: %s", event.BeforeUpdate.AppliedTags)
+				logger("debug", "event.Channel.AppliedTags: %s", event.Channel.AppliedTags)
+				added, removed, existing := diffArrays(event.BeforeUpdate.AppliedTags, event.Channel.AppliedTags)
 				logger("debug", "ThreadUpdate Added Tags: %s", added)
 				logger("debug", "ThreadUpdate Removed Tags: %s", removed)
-				if sliceContainsValue(added, viper.GetString("discord_inductions.booked_tag_id")) {
-					logger("info", "Induction thread marked as booked")
-				}
-				if sliceContainsValue(added, viper.GetString("discord_inductions.completed_tag_id")) {
-					logger("info", "Induction thread marked as completed")
-				}
+				logger("debug", "ThreadUpdate Existing Tags: %s", existing)
 
-				if sliceContainsValue(added, viper.GetString("discord_inductions.booked_tag_id")) || sliceContainsValue(added, viper.GetString("discord_inductions.completed_tag_id")) {
-					err := removeTagFromThread(dg, event.Channel.ID, viper.GetString("discord_inductions.outstanding_tag_id"))
-					if err != nil {
-						logger("error", "Could not remove tag from thread ThreadID: %s\nError: %s", event.Channel.ID, err)
-					} else {
-						logger("info", "Tag removed successfully")
+				if len(added) > 0 {
+					// Loop through existing tags and remove them
+					for _, tag := range existing {
+						err := removeTagFromThread(dg, event.Channel.ID, tag)
+						if err != nil {
+							logger("error", "Could not remove existing tag from thread ThreadID: %s\nTag: %s\nError: %s", event.Channel.ID, tag, err)
+						} else {
+							logger("info", "Existing tag removed successfully: %s", tag)
+						}
 					}
-
 				}
+
+				// Check if the completed tag was added
 				if sliceContainsValue(added, viper.GetString("discord_inductions.completed_tag_id")) {
 					threadArchived := true
 					_, err := s.ChannelEdit(event.Channel.ID, &discordgo.ChannelEdit{
