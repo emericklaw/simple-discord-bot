@@ -4,18 +4,16 @@
 
 ### Setup
 
+#### Installing Go
+
+Follow instructions here https://go.dev/doc/install
+
+Make sure you add Go to your PATH.
+
 #### Using Air
 
 ```bash
 go install github.com/air-verse/air@latest
-```
-
-Make sure Go is in your PATH
-
-```bash
-export GOPATH=$HOME/go
-export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
-export PATH=$PATH:$(go env GOPATH)/bin
 ```
 
 The `run-dev.sh` script will setup the paths when used to launch air.
