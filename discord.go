@@ -26,7 +26,8 @@ func initDiscord() error {
 	logger("debug", "Discord session object created")
 
 	dg.AddHandler(ready)
-	dg.AddHandler(interactionHandler)
+	dg.AddHandler(inductionInteractionHandler)
+	dg.AddHandler(taskInteractionHandler)
 	dg.AddHandler(threadUpdate)
 	dg.AddHandler(messageCreate)
 	dg.AddHandler(addReaction)
@@ -58,6 +59,9 @@ func ready(s *discordgo.Session, event *discordgo.Ready) {
 
 		// Induction check
 		checkInductions(dg)
+
+		// Tasks
+		initTasks()
 	}()
 
 }
@@ -220,18 +224,23 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			functionName := prepareTemplate(viper.GetString("commands."+mycommand+".function"), commandoptions)
 			// Map function names to actual functions
 			functions := map[string]func(*discordgo.Session, *discordgo.MessageCreate, string, string){
-				"sendMessage":      sendMessage,
-				"editMessage":      editMessage,
-				"listEmoji":        listEmoji,
-				"showHelp":         showHelp,
-				"apiHomeAssistant": apiHomeAssistant,
-				"cameraSnapshot":   cameraSnapshot,
-				"cameraList":       cameraList,
-				"showVersion":      showVersion,
-				"logLevelSet":      logLevelSet,
-				"logLevelShow":     logLevelShow,
-				"loadConfig":       loadConfigCommand,
-				"checkInductions":  checkInductionsCommand,
+				"sendMessage":       sendMessage,
+				"editMessage":       editMessage,
+				"listEmoji":         listEmoji,
+				"showHelp":          showHelp,
+				"apiHomeAssistant":  apiHomeAssistant,
+				"cameraSnapshot":    cameraSnapshot,
+				"cameraList":        cameraList,
+				"showVersion":       showVersion,
+				"logLevelSet":       logLevelSet,
+				"logLevelShow":      logLevelShow,
+				"loadConfig":        loadConfigCommand,
+				"checkInductions":   checkInductionsCommand,
+				"taskList":          taskList,
+				"taskAdd":           taskAdd,
+				"taskArchive":       taskArchive,
+				"taskListScheduled": taskListScheduled,
+				"taskRun":           taskRun,
 			}
 
 			// Call the function based on the name
@@ -267,10 +276,23 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 // send a private message to a user
-func privateMessageCreate(s *discordgo.Session, userid string, message string, codeblock bool) {
-	var wrapper string
+func privateMessageCreate(s *discordgo.Session, userid string, message string, codeblock bool, ansi ...bool) {
+	var wrapperStart string
+	var wrapperEnd string
 	if codeblock {
-		wrapper = "```"
+		wrapperStart = "```"
+		wrapperEnd = "```"
+	}
+
+	var ansiValue bool
+	if len(ansi) > 0 {
+		ansiValue = ansi[0]
+	} else {
+		ansiValue = false // Default value
+	}
+	if ansiValue {
+		wrapperStart = "```ansi\n"
+		wrapperEnd = "\n```"
 	}
 
 	// create the private message channel to user
@@ -293,7 +315,7 @@ func privateMessageCreate(s *discordgo.Session, userid string, message string, c
 		sort.Ints(allkeys[:])
 
 		for _, key := range allkeys {
-			_, err = s.ChannelMessageSend(channel.ID, wrapper+messagechunks[key]+wrapper)
+			_, err = s.ChannelMessageSend(channel.ID, wrapperStart+messagechunks[key]+wrapperEnd)
 			if err != nil {
 				logger("error", "Cannot send message to %s with %s", channel.ID, err)
 			}
@@ -301,7 +323,7 @@ func privateMessageCreate(s *discordgo.Session, userid string, message string, c
 
 	} else {
 		// send the message to the user
-		_, err = s.ChannelMessageSend(channel.ID, wrapper+message+wrapper)
+		_, err = s.ChannelMessageSend(channel.ID, wrapperStart+message+wrapperEnd)
 		if err != nil {
 			logger("error", "Cannot send DM to %s with %s", userid, err)
 			s.ChannelMessageSend(userid, "Failed to send you a DM. Did you disable DM in your privacy settings?")

@@ -138,7 +138,9 @@ func showHelp(s *discordgo.Session, m *discordgo.MessageCreate, command string, 
 
 	user, _ := s.GuildMember(viper.GetString("_discord_default_server_id"), m.Author.ID)
 
+	var helpCommands = make(map[string]string)
 	var helpMessage string
+	var longestCommandLength int = 0
 
 	commandkey := viper.GetString("_command_key")
 
@@ -171,25 +173,32 @@ func showHelp(s *discordgo.Session, m *discordgo.MessageCreate, command string, 
 				continue
 			}
 
-			helpMessage += commandkey + " " + command + strings.Repeat(" ", 30-len(command)) + "- " + help + "\n"
+			if len(command) > longestCommandLength {
+				longestCommandLength = len(command)
+			}
+
+			helpCommands[commandkey+" "+command] = help
 		}
 
 	}
 
-	// sort commands into alphabetical order
+	// Sort the commands alphabetically
+	keys := make([]string, 0, len(helpCommands))
+	for key := range helpCommands {
+		keys = append(keys, key)
+	}
 
-	// Split the string into lines
-	lines := strings.Split(helpMessage, "\n")
+	// Sort the keys
+	sort.Strings(keys)
 
-	// Sort the lines alphabetically
-	sort.Strings(lines)
-
-	// Join the sorted lines back together
-	helpMessage = strings.Join(lines, "\n")
+	// Iterate over the sorted keys and access the map values
+	for _, key := range keys {
+		helpMessage += key + strings.Repeat(" ", longestCommandLength+len(commandkey)+2-len(key)) + "- " + helpCommands[key] + "\n"
+	}
 
 	helpMessage = "Help Commands:\n--------------\n" + helpMessage
 
-	privateMessageCreate(s, m.Author.ID, helpMessage, true)
+	privateMessageCreate(s, m.Author.ID, helpMessage, true, true)
 }
 
 // custom command function for showing the version
