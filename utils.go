@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os/exec"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -261,4 +262,38 @@ func diffArrays[T comparable](oldArray []T, newArray []T) (added []T, removed []
 	}
 
 	return added, removed, existing
+}
+
+// splitString splits a string into the first wordCount words and the remaining words.
+func splitString(input string, splitCharacter string, wordCount int) (string, string) {
+	words := strings.Split(input, splitCharacter) // Split the string into words
+	if len(words) <= wordCount {
+		return strings.Join(words, splitCharacter), "" // If wordCount or fewer words, return all as the first part
+	}
+	return strings.Join(words[:wordCount], splitCharacter), strings.Join(words[wordCount:], splitCharacter) // Split into first wordCount and the rest
+}
+
+// splitStringArray splits a string into the first wordCount words and the remaining words as an array.
+func splitStringArray(input string, splitCharacter string, wordCount int) ([]string, []string) {
+	words := strings.Split(input, splitCharacter) // Split the string into words
+	if len(words) <= wordCount {
+		return words, nil // If wordCount or fewer words, return all as a single element
+	}
+	return words[:wordCount], words[wordCount:]
+
+}
+
+// splitQuotedParts splits a string into parts enclosed in quotes.
+func splitQuotedParts(input string) []string {
+	// Regular expression to match quoted parts
+	re := regexp.MustCompile(`"([^"]*)"`)
+	matches := re.FindAllStringSubmatch(input, -1)
+
+	var parts []string
+	for _, match := range matches {
+		if len(match) > 1 {
+			parts = append(parts, match[1]) // Add the captured group (without quotes)
+		}
+	}
+	return parts
 }

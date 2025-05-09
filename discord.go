@@ -27,6 +27,7 @@ func initDiscord() error {
 
 	dg.AddHandler(ready)
 	dg.AddHandler(inductionInteractionHandler)
+	dg.AddHandler(taskInteractionHandler)
 	dg.AddHandler(threadUpdate)
 	dg.AddHandler(messageCreate)
 	dg.AddHandler(addReaction)
@@ -58,6 +59,9 @@ func ready(s *discordgo.Session, event *discordgo.Ready) {
 
 		// Induction check
 		checkInductions(dg)
+
+		// Tasks
+		initTasks()
 	}()
 
 }
@@ -220,18 +224,23 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			functionName := prepareTemplate(viper.GetString("commands."+mycommand+".function"), commandoptions)
 			// Map function names to actual functions
 			functions := map[string]func(*discordgo.Session, *discordgo.MessageCreate, string, string){
-				"sendMessage":      sendMessage,
-				"editMessage":      editMessage,
-				"listEmoji":        listEmoji,
-				"showHelp":         showHelp,
-				"apiHomeAssistant": apiHomeAssistant,
-				"cameraSnapshot":   cameraSnapshot,
-				"cameraList":       cameraList,
-				"showVersion":      showVersion,
-				"logLevelSet":      logLevelSet,
-				"logLevelShow":     logLevelShow,
-				"loadConfig":       loadConfigCommand,
-				"checkInductions":  checkInductionsCommand,
+				"sendMessage":       sendMessage,
+				"editMessage":       editMessage,
+				"listEmoji":         listEmoji,
+				"showHelp":          showHelp,
+				"apiHomeAssistant":  apiHomeAssistant,
+				"cameraSnapshot":    cameraSnapshot,
+				"cameraList":        cameraList,
+				"showVersion":       showVersion,
+				"logLevelSet":       logLevelSet,
+				"logLevelShow":      logLevelShow,
+				"loadConfig":        loadConfigCommand,
+				"checkInductions":   checkInductionsCommand,
+				"taskList":          taskList,
+				"taskAdd":           taskAdd,
+				"taskArchive":       taskArchive,
+				"taskListScheduled": taskListScheduled,
+				"taskRun":           taskRun,
 			}
 
 			// Call the function based on the name

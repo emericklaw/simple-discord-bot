@@ -10,6 +10,7 @@ import (
 
 // loads configuration
 func loadConfig() {
+	unscheduleTasks()
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			logger("emergency", "Config file not found")
@@ -17,6 +18,7 @@ func loadConfig() {
 			logger("emergency", "Config file was found but another error was discovered: %s", err)
 		}
 	}
+	initTasks()
 }
 
 func loadConfigCommand(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
