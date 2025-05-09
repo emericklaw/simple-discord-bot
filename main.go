@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/spf13/viper"
@@ -19,6 +20,7 @@ const buildDateTime string = ""
 var currentLogLevel string = "notice"
 var dg *discordgo.Session // Global Discord session
 var discordConnected bool = false
+var timezone *time.Location
 
 func init() {
 	configfileflag := flag.String("config", "config.yaml", "Configuration file: /path/to/file.yaml, default = ./config.yaml")
@@ -73,6 +75,15 @@ func init() {
 }
 
 func main() {
+
+	// Set the timezone
+	var err error
+	configTimeZone := viper.GetString("_timezone")
+	timezone, err = time.LoadLocation(configTimeZone) // Replace with your desired timezone
+	if err != nil {
+		fmt.Println("Error loading timezone:", err)
+		return
+	}
 
 	// Initialize Discord bot and check for errors
 	if err := initDiscord(); err != nil {

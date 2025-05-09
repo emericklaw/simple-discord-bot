@@ -148,7 +148,13 @@ func taskListScheduled(s *discordgo.Session, m *discordgo.MessageCreate, command
 		jobNextRun, _ := job.NextRun()
 		jobLastRun, _ := job.LastRun()
 
-		jobItems += fmt.Sprintf("**ID:** %s\n**Name:** %s\n**Next Run:** %v\n**Last Run:** %v\n\n", jobID, jobName, jobNextRun, jobLastRun)
+		jobItems += fmt.Sprintf(
+			"**ID:** %s\n**Name:** %s\n**Next Run:** %v\n**Last Run:** %v\n\n",
+			jobID,
+			jobName,
+			jobNextRun.In(timezone).Format("2006-01-02")+" "+jobNextRun.In(timezone).Format("15:04:05"),
+			jobLastRun.In(timezone).Format("2006-01-02")+" "+jobLastRun.In(timezone).Format("15:04:05"),
+		)
 	}
 	if jobItems == "" {
 		privateMessageCreate(s, m.Author.ID, "No scheduled jobs found", false)
