@@ -114,7 +114,7 @@ func updateInductionMessage(s *discordgo.Session, requestMessageID string) {
 				actionButton := discordgo.Button{
 					Label:    strings.TrimSpace(strings.Replace(strings.Split(role.Name, "-")[1], " DISABLED", "", 1)),
 					Style:    discordgo.DangerButton,
-					CustomID: role.ID,
+					CustomID: "InductionRequest:" + role.ID,
 					Disabled: strings.HasSuffix(role.Name, " DISABLED"),
 				}
 				actionRow.Components = append(actionRow.Components, actionButton)
@@ -123,7 +123,7 @@ func updateInductionMessage(s *discordgo.Session, requestMessageID string) {
 				actionButton := discordgo.Button{
 					Label:    strings.TrimSpace(strings.Replace(strings.Split(role.Name, "-")[2], " DISABLED", "", 1)),
 					Style:    discordgo.PrimaryButton,
-					CustomID: role.ID,
+					CustomID: "InductionRequest:" + role.ID,
 					Disabled: strings.HasSuffix(role.Name, " DISABLED"),
 				}
 				actionRow.Components = append(actionRow.Components, actionButton)
@@ -206,16 +206,27 @@ func updateInductionMessage(s *discordgo.Session, requestMessageID string) {
 
 }
 
-func interactionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func inductionInteractionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	switch i.Type {
 	case discordgo.InteractionMessageComponent:
 
-		guildID := viper.GetString("_discord_default_server_id")
+		interactionParameters, _ := splitStringArray(i.MessageComponentData().CustomID, ":", 2)
+
+		if interactionParameters[0] != "InductionRequest" {
+			return
+		}
+
+		logger("info", "Induction interaction handler")
+		logger("debug", "Induction interaction handler: %s", i.MessageComponentData().CustomID)
+		logger("debug", "Induction interaction handler: %s", i.Member.User.Username)
+
 		inductionRequestChannelID := viper.GetString("discord_inductions.request_channel_id")
-		role, _ := dg.State.Role(guildID, i.MessageComponentData().CustomID)
+
+		guildID := viper.GetString("_discord_default_server_id")
+		role, _ := dg.State.Role(guildID, interactionParameters[1])
 
 		titleText := getDiscordDisplayName(i.Member) + " would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1]
-		messageText := "<@" + i.Member.User.ID + "> would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please can someone help them out? <@&" + i.MessageComponentData().CustomID + ">"
+		messageText := "<@" + i.Member.User.ID + "> would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please can someone help them out? <@&" + interactionParameters[1] + ">"
 
 		outstandingTagID := viper.GetString("discord_inductions.outstanding_tag_id")
 
@@ -225,6 +236,7 @@ func interactionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Type:                13,
 			AppliedTags:         []string{outstandingTagID},
 		}
+
 		message := discordgo.MessageSend{
 			Content: messageText,
 		}

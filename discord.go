@@ -26,7 +26,7 @@ func initDiscord() error {
 	logger("debug", "Discord session object created")
 
 	dg.AddHandler(ready)
-	dg.AddHandler(interactionHandler)
+	dg.AddHandler(inductionInteractionHandler)
 	dg.AddHandler(threadUpdate)
 	dg.AddHandler(messageCreate)
 	dg.AddHandler(addReaction)
