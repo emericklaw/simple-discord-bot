@@ -1,3 +1,6 @@
 {
-    "recommendations": []
+    "recommendations": [
+        "redhat.vscode-yaml",
+        "golang.go"
+    ]
 }
