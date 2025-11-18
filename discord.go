@@ -62,6 +62,9 @@ func ready(s *discordgo.Session, event *discordgo.Ready) {
 
 		// Tasks
 		initTasks()
+
+		// Scheduled Messages
+		initScheduledMessages()
 	}()
 
 }
@@ -237,9 +240,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 				"loadConfig":        loadConfigCommand,
 				"checkInductions":   checkInductionsCommand,
 				"taskList":          taskList,
+				"taskListScheduled": taskListScheduled,
 				"taskAdd":           taskAdd,
 				"taskArchive":       taskArchive,
-				"taskListScheduled": taskListScheduled,
 				"taskRun":           taskRun,
 			}
 

@@ -13,17 +13,23 @@ import (
 var taskScheduler gocron.Scheduler
 var jobs map[string]gocron.Job = make(map[string]gocron.Job)
 
+// Initializes the task scheduler
 func initTasks() {
-	// create a scheduler
 	var err error
+	if taskScheduler != nil {
+		logger("info", "Shutting down existing Tasks scheduler")
+		taskScheduler.Shutdown()
+		taskScheduler = nil
+	}
 	if taskScheduler == nil {
+		logger("info", "Creating Tasks scheduler")
+
 		taskScheduler, err = gocron.NewScheduler()
 		if err != nil {
-			// handle error
+			logger("error", "Failed to create new Tasks scheduler: %s", err)
+			return
 		}
 	}
-
-	unscheduleTasks()
 
 	// load the tasks from the config
 	tasks := viper.GetStringMap("tasks.tasks")
@@ -33,8 +39,10 @@ func initTasks() {
 
 	// start the scheduler
 	taskScheduler.Start()
+	logger("info", "Task scheduler started")
 }
 
+// Schedules a task
 func scheduleTask(taskID string) {
 
 	logger("debug", "Scheduling task %s", taskID)
@@ -51,7 +59,7 @@ func scheduleTask(taskID string) {
 	}
 
 	schedule := viper.GetString("tasks.tasks." + taskID + ".schedule")
-	name := viper.GetString("tasks.tasks." + taskID + ".title")
+	name := viper.GetString("tasks.tasks." + taskID + ".name")
 
 	job, err := taskScheduler.NewJob(
 		gocron.CronJob(
@@ -68,36 +76,16 @@ func scheduleTask(taskID string) {
 		gocron.WithIdentifier(uuid.MustParse(taskID)),
 	)
 	if err != nil {
-		logger("error", "Error scheduling task\nTask ID: %s\nError: %s", taskID, err)
+		logger("error", "Error scheduling task - Task ID: %s - Error: %s", taskID, err)
 		return
 	}
 
 	jobs[taskID] = job
 
-	logger("debug", "Task ID %s scheduled", taskID)
+	logger("info", "Task '%s' scheduled - ID: %s Cron: %s", name, taskID, schedule)
 }
 
-func unscheduleTasks() {
-	if taskScheduler == nil {
-		return
-	}
-
-	jobs := taskScheduler.Jobs()
-
-	if len(jobs) == 0 {
-		logger("debug", "No scheduled jobs found")
-		return
-	}
-
-	logger("info", "Unscheduling all jobs")
-	for _, job := range jobs {
-		// Access job details
-		jobID := job.ID()
-		taskScheduler.RemoveJob(jobID)
-	}
-	logger("info", "All jobs unscheduled")
-}
-
+// Runs a scheduled task immediately
 func taskRun(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
 	if content == "" {
 		privateMessageCreate(s, m.Author.ID, "No task ID provided", false)
@@ -112,8 +100,8 @@ func taskRun(s *discordgo.Session, m *discordgo.MessageCreate, command string, c
 	}
 
 	if taskScheduler == nil {
-		logger("error", "Task scheduler is not initialized")
-		privateMessageCreate(s, m.Author.ID, "Task scheduler is not initialized", false)
+		logger("error", "Task scheduler is not initialised")
+		privateMessageCreate(s, m.Author.ID, "Task scheduler is not initialised", false)
 		return
 	}
 
@@ -128,10 +116,11 @@ func taskRun(s *discordgo.Session, m *discordgo.MessageCreate, command string, c
 	privateMessageCreate(s, m.Author.ID, "Job run: "+taskID, false)
 }
 
+// Lists scheduled tasks
 func taskListScheduled(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
 	if taskScheduler == nil {
-		logger("error", "Task scheduler is not initialized")
-		privateMessageCreate(s, m.Author.ID, "Task scheduler is not initialized", false)
+		logger("error", "Task scheduler is not initialised")
+		privateMessageCreate(s, m.Author.ID, "Task scheduler is not initialised", false)
 		return
 	}
 	jobs := taskScheduler.Jobs()
@@ -146,15 +135,24 @@ func taskListScheduled(s *discordgo.Session, m *discordgo.MessageCreate, command
 		jobID := job.ID()
 		jobName := job.Name()
 		jobNextRun, _ := job.NextRun()
-		jobLastRun, _ := job.LastRun()
+		jobLastRun, lastRunExists := job.LastRun()
 
-		jobItems += fmt.Sprintf(
-			"**ID:** %s\n**Name:** %s\n**Next Run:** %v\n**Last Run:** %v\n\n",
-			jobID,
-			jobName,
-			jobNextRun.In(timezone).Format("2006-01-02")+" "+jobNextRun.In(timezone).Format("15:04:05"),
-			jobLastRun.In(timezone).Format("2006-01-02")+" "+jobLastRun.In(timezone).Format("15:04:05"),
-		)
+		if lastRunExists != nil || jobLastRun.IsZero() {
+			jobItems += fmt.Sprintf(
+				"## Name: %s\n**ID:** %s\n**Next Run:** %s\n\n",
+				jobName,
+				jobID,
+				jobNextRun.In(timezone).Format("2006-01-02")+" "+jobNextRun.In(timezone).Format("15:04:05"),
+			)
+		} else {
+			jobItems += fmt.Sprintf(
+				"## Name: %s\n**ID:** %s\n**Next Run:** %s\n**Last Run:** %s\n\n",
+				jobName,
+				jobID,
+				jobNextRun.In(timezone).Format("2006-01-02")+" "+jobNextRun.In(timezone).Format("15:04:05"),
+				jobLastRun.In(timezone).Format("2006-01-02")+" "+jobLastRun.In(timezone).Format("15:04:05"),
+			)
+		}
 	}
 	if jobItems == "" {
 		privateMessageCreate(s, m.Author.ID, "No scheduled jobs found", false)
@@ -164,6 +162,7 @@ func taskListScheduled(s *discordgo.Session, m *discordgo.MessageCreate, command
 	logger("debug", "Scheduled jobs sent")
 }
 
+// Lists tasks
 func taskList(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
 
 	if !viper.IsSet("tasks.tasks") {
@@ -178,26 +177,23 @@ func taskList(s *discordgo.Session, m *discordgo.MessageCreate, command string, 
 	var taskItems string
 	for taskID, _ := range taskList {
 		schedule := viper.Get("tasks.tasks." + taskID + ".schedule")
-		title := viper.Get("tasks.tasks." + taskID + ".title")
+		name := viper.Get("tasks.tasks." + taskID + ".name")
 		description := viper.Get("tasks.tasks." + taskID + ".description")
 		archived := viper.Get("tasks.tasks." + taskID + ".archived")
 		if archived == nil || !archived.(bool) {
-			taskItems += fmt.Sprintf("**ID:** %s\n**Schedule:** `%v`\n**Title:** %v\n**Description:** %v\n\n", taskID, schedule, title, description)
+			taskItems += fmt.Sprintf("## Name: %v\n**ID:** %s\n**Schedule:** `%v`\n**Description:** %v\n\n", name, taskID, schedule, description)
 		}
 	}
 	if taskItems == "" {
 		privateMessageCreate(s, m.Author.ID, "No tasks found", false)
 		return
 	}
-	privateMessageCreate(s, m.Author.ID, "# Task List\n"+taskItems, false)
+	privateMessageCreate(s, m.Author.ID, "# Tasks\n"+taskItems, false)
 	logger("debug", "Task list sent")
 }
 
+// Adds a new task
 func taskAdd(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
-	newTaskID := uuid.New().String()
-
-	newTask := "tasks.tasks." + newTaskID
-
 	parts := splitQuotedParts(content)
 
 	if len(parts) < 3 {
@@ -205,12 +201,15 @@ func taskAdd(s *discordgo.Session, m *discordgo.MessageCreate, command string, c
 		return
 	}
 
-	cronSchedule := parts[0]
-	title := parts[1]
+	newTaskID := uuid.New().String()
+	newTask := "tasks.tasks." + newTaskID
+
+	name := parts[0]
+	cronSchedule := parts[1]
 	description := parts[2]
 
 	viper.Set(newTask+".schedule", cronSchedule)
-	viper.Set(newTask+".title", title)
+	viper.Set(newTask+".name", name)
 	viper.Set(newTask+".description", description)
 	viper.WriteConfig()
 
@@ -220,6 +219,7 @@ func taskAdd(s *discordgo.Session, m *discordgo.MessageCreate, command string, c
 	privateMessageCreate(s, m.Author.ID, "Task added", false)
 }
 
+// Archives a task
 func taskArchive(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
 
 	id := content
@@ -244,11 +244,12 @@ func taskArchive(s *discordgo.Session, m *discordgo.MessageCreate, command strin
 	privateMessageCreate(s, m.Author.ID, "Task item archived", false)
 }
 
+// Sends a task message to the designated channel
 func sendTaskMessage(s *discordgo.Session, taskID string) {
 
 	taskChannelID := viper.GetString("tasks.channel_id")
 
-	taskTitle := viper.GetString("tasks.tasks." + taskID + ".title")
+	taskTitle := viper.GetString("tasks.tasks." + taskID + ".name")
 	taskDescription := viper.GetString("tasks.tasks." + taskID + ".description")
 
 	components := []discordgo.MessageComponent{}
@@ -290,6 +291,7 @@ func sendTaskMessage(s *discordgo.Session, taskID string) {
 
 }
 
+// Handles task interactions
 func taskInteractionHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	switch i.Type {
 	case discordgo.InteractionMessageComponent:
@@ -329,7 +331,7 @@ func taskInteractionHandler(s *discordgo.Session, i *discordgo.InteractionCreate
 			Locked:   &threadArchived,
 		})
 		if err != nil {
-			logger("error", "Could not close thread ThreadID: %s\nError: %s", i.ChannelID, err)
+			logger("error", "Could not close thread ThreadID: %s - Error: %s", i.ChannelID, err)
 		}
 
 	}

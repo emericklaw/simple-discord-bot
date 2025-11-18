@@ -9,8 +9,13 @@ import (
 )
 
 // loads configuration
-func loadConfig() {
-	unscheduleTasks()
+func loadConfig(reload ...bool) {
+	var isReload bool
+	if len(reload) > 0 {
+		isReload = reload[0]
+	} else {
+		isReload = false
+	}
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			logger("emergency", "Config file not found")
@@ -18,11 +23,14 @@ func loadConfig() {
 			logger("emergency", "Config file was found but another error was discovered: %s", err)
 		}
 	}
-	initTasks()
+
+	if isReload {
+		initTasks()
+	}
 }
 
 func loadConfigCommand(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
-	loadConfig()
+	loadConfig(true)
 	logger("warning", "Configuration has been reloaded")
 	privateMessageCreate(s, m.Author.ID, "Configuration has been reloaded", false)
 }
