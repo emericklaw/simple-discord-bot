@@ -221,15 +221,7 @@ func scheduledMessagesRun(s *discordgo.Session, m *discordgo.MessageCreate, comm
 		return
 	}
 
-	err := scheduledMessagesJobs[scheduledMessageID].RunNow()
-	if err != nil {
-		logger("error", "Error running scheduled message: %s", err)
-		privateMessageCreate(s, m.Author.ID, "Error running scheduled message: "+err.Error(), false)
-		return
-	}
-
-	logger("info", "Scheduled message run: %s", scheduledMessageID)
-	privateMessageCreate(s, m.Author.ID, "Scheduled message run: "+scheduledMessageID, false)
+	sendScheduledMessage(s, scheduledMessageID)
 }
 
 // Sends a scheduled message to the configured channel

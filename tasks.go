@@ -99,21 +99,7 @@ func taskRun(s *discordgo.Session, m *discordgo.MessageCreate, command string, c
 		return
 	}
 
-	if taskScheduler == nil {
-		logger("error", "Task scheduler is not initialised")
-		privateMessageCreate(s, m.Author.ID, "Task scheduler is not initialised", false)
-		return
-	}
-
-	err := jobs[taskID].RunNow()
-	if err != nil {
-		logger("error", "Error running job: %s", err)
-		privateMessageCreate(s, m.Author.ID, "Error running job: "+err.Error(), false)
-		return
-	}
-
-	logger("info", "Job run: %s", taskID)
-	privateMessageCreate(s, m.Author.ID, "Job run: "+taskID, false)
+	sendTaskMessage(s, taskID)
 }
 
 // Lists scheduled tasks
