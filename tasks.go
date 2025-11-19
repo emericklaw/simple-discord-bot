@@ -34,6 +34,7 @@ func initTasks() {
 	// load the tasks from the config
 	tasks := viper.GetStringMap("tasks.tasks")
 	for taskID, _ := range tasks {
+		logger("debug", "Loading task ID: %s", taskID)
 		scheduleTask(taskID)
 	}
 
@@ -85,6 +86,69 @@ func scheduleTask(taskID string) {
 	logger("info", "Task '%s' scheduled - ID: %s Cron: %s", name, taskID, schedule)
 }
 
+// Adds a new task
+func taskAdd(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+	parts := splitQuotedParts(content)
+
+	if len(parts) < 3 {
+		privateMessageCreate(s, m.Author.ID, "Invalid command format", false)
+		return
+	}
+
+	newTaskID := uuid.New().String()
+	newTask := "tasks.tasks." + newTaskID
+
+	name := parts[0]
+	cronSchedule := parts[1]
+	description := parts[2]
+
+	viper.Set(newTask+".schedule", cronSchedule)
+	viper.Set(newTask+".name", name)
+	viper.Set(newTask+".description", description)
+	viper.WriteConfig()
+
+	scheduleTask(newTaskID)
+
+	privateMessageCreate(s, m.Author.ID, "Task added", false)
+	logger("info", "Task added")
+}
+
+// Archives a task
+func taskArchive(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+
+	id := content
+
+	if !viper.IsSet("tasks.tasks." + id) {
+		privateMessageCreate(s, m.Author.ID, "Task item not found", false)
+		return
+	}
+
+	taskUUID, err := uuid.Parse(id)
+	if err != nil {
+		logger("error", "Invalid task scheduler ID: %s", id)
+		privateMessageCreate(s, m.Author.ID, "Failed to remove task from scheduler due to invalid ID", false)
+		return
+	}
+	taskScheduler.RemoveJob(taskUUID)
+
+	// Get all tasks to preserve all data
+	allTasks := viper.GetStringMap("tasks.tasks")
+
+	// Preserve all tasks and their fields
+	for taskID, taskData := range allTasks {
+		if taskMap, ok := taskData.(map[string]interface{}); ok {
+			for key, value := range taskMap {
+				viper.Set("tasks.tasks."+taskID+"."+key, value)
+			}
+		}
+	}
+	viper.Set("tasks.tasks."+id+".archived", true)
+	viper.WriteConfig()
+
+	logger("warning", "Task item archived")
+	privateMessageCreate(s, m.Author.ID, "Task item archived", false)
+}
+
 // Runs a scheduled task immediately
 func taskRun(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
 	if content == "" {
@@ -99,7 +163,6 @@ func taskRun(s *discordgo.Session, m *discordgo.MessageCreate, command string, c
 		return
 	}
 
-	sendTaskMessage(s, taskID)
 }
 
 // Lists scheduled tasks
@@ -111,11 +174,11 @@ func taskListScheduled(s *discordgo.Session, m *discordgo.MessageCreate, command
 	}
 	jobs := taskScheduler.Jobs()
 	if len(jobs) == 0 {
-		logger("debug", "No scheduled jobs found")
-		privateMessageCreate(s, m.Author.ID, "No scheduled jobs found", false)
+		logger("debug", "No scheduled tasks found")
+		privateMessageCreate(s, m.Author.ID, "No scheduled tasks found", false)
 		return
 	}
-	logger("info", "Scheduled jobs found")
+	logger("info", "Scheduled tasks found")
 	var jobItems string
 	for _, job := range jobs {
 		jobID := job.ID()
@@ -141,11 +204,11 @@ func taskListScheduled(s *discordgo.Session, m *discordgo.MessageCreate, command
 		}
 	}
 	if jobItems == "" {
-		privateMessageCreate(s, m.Author.ID, "No scheduled jobs found", false)
+		privateMessageCreate(s, m.Author.ID, "No scheduled tasks found", false)
 		return
 	}
-	privateMessageCreate(s, m.Author.ID, "# Scheduled Jobs\n"+jobItems, false)
-	logger("debug", "Scheduled jobs sent")
+	privateMessageCreate(s, m.Author.ID, "# Scheduler for Tasks\n"+jobItems, false)
+	logger("debug", "Scheduled tasks sent")
 }
 
 // Lists tasks
@@ -155,11 +218,14 @@ func taskList(s *discordgo.Session, m *discordgo.MessageCreate, command string, 
 		privateMessageCreate(s, m.Author.ID, "No tasks found", false)
 		return
 	}
+
 	taskList := viper.GetStringMap("tasks.tasks")
+
 	if len(taskList) == 0 {
 		privateMessageCreate(s, m.Author.ID, "No tasks found", false)
 		return
 	}
+
 	var taskItems string
 	for taskID, _ := range taskList {
 		schedule := viper.Get("tasks.tasks." + taskID + ".schedule")
@@ -176,58 +242,6 @@ func taskList(s *discordgo.Session, m *discordgo.MessageCreate, command string, 
 	}
 	privateMessageCreate(s, m.Author.ID, "# Tasks\n"+taskItems, false)
 	logger("debug", "Task list sent")
-}
-
-// Adds a new task
-func taskAdd(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
-	parts := splitQuotedParts(content)
-
-	if len(parts) < 3 {
-		privateMessageCreate(s, m.Author.ID, "Invalid command format", false)
-		return
-	}
-
-	newTaskID := uuid.New().String()
-	newTask := "tasks.tasks." + newTaskID
-
-	name := parts[0]
-	cronSchedule := parts[1]
-	description := parts[2]
-
-	viper.Set(newTask+".schedule", cronSchedule)
-	viper.Set(newTask+".name", name)
-	viper.Set(newTask+".description", description)
-	viper.WriteConfig()
-
-	scheduleTask(newTaskID)
-
-	logger("info", "Task added")
-	privateMessageCreate(s, m.Author.ID, "Task added", false)
-}
-
-// Archives a task
-func taskArchive(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
-
-	id := content
-
-	if !viper.IsSet("tasks.tasks." + id) {
-		privateMessageCreate(s, m.Author.ID, "Task item not found", false)
-		return
-	}
-
-	taskUUID, err := uuid.Parse(id)
-	if err != nil {
-		logger("error", "Invalid task scheduler ID: %s", id)
-		privateMessageCreate(s, m.Author.ID, "Failed to remove task from scheduler due to invalid ID", false)
-		return
-	}
-	taskScheduler.RemoveJob(taskUUID)
-
-	viper.Set("tasks.tasks."+id+".archived", true)
-	viper.WriteConfig()
-
-	logger("warning", "Task item archived")
-	privateMessageCreate(s, m.Author.ID, "Task item archived", false)
 }
 
 // Sends a task message to the designated channel

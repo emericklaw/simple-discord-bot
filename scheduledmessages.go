@@ -32,6 +32,7 @@ func initScheduledMessages() {
 	// Schedule all messages from config
 	scheduledMessages := viper.GetStringMap("scheduled_messages")
 	for scheduledMessageID, _ := range scheduledMessages {
+		logger("debug", "Loading scheduled message ID: %s", scheduledMessageID)
 		scheduleScheduledMessages(scheduledMessageID)
 	}
 
@@ -82,7 +83,7 @@ func scheduleScheduledMessages(scheduledMessageID string) {
 	logger("info", "Scheduled message '%s' scheduled - ID: %s Cron: %s", name, scheduledMessageID, schedule)
 }
 
-// Adds a new scheduled message to config and schedules it
+// Adds a new scheduled message
 func scheduledMessagesAdd(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
 	parts := splitQuotedParts(content)
 
@@ -105,8 +106,69 @@ func scheduledMessagesAdd(s *discordgo.Session, m *discordgo.MessageCreate, comm
 	viper.Set(newScheduledMessage+".message", message)
 	viper.WriteConfig()
 
+	scheduleScheduledMessages(newScheduledMessageID)
+
 	privateMessageCreate(s, m.Author.ID, "Scheduled message added: "+name, false)
 	logger("info", "Scheduled message added: %s", name)
+}
+
+// Archives a scheduled message
+func scheduledMessagesArchive(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+
+	id := content
+
+	if !viper.IsSet("scheduled_messages." + id) {
+		privateMessageCreate(s, m.Author.ID, "Scheduled message not found", false)
+		return
+	}
+
+	scheduledMessageUUID, err := uuid.Parse(id)
+	if err != nil {
+		logger("error", "Invalid scheduled message ID: %s", id)
+		privateMessageCreate(s, m.Author.ID, "Failed to remove scheduled message from scheduler due to invalid ID", false)
+		return
+	}
+	scheduledMessagesScheduler.RemoveJob(scheduledMessageUUID)
+
+	// Get all scheduled messages to preserve all data
+	allScheduledMessages := viper.GetStringMap("scheduled_messages")
+
+	// Preserve all scheduled messages and their fields
+	for msgID, msgData := range allScheduledMessages {
+		if msgMap, ok := msgData.(map[string]interface{}); ok {
+			for key, value := range msgMap {
+				viper.Set("scheduled_messages."+msgID+"."+key, value)
+			}
+		}
+	}
+	viper.Set("scheduled_messages."+id+".archived", true)
+	viper.WriteConfig()
+
+	logger("warning", "Scheduled message archived")
+	privateMessageCreate(s, m.Author.ID, "Scheduled message archived", false)
+}
+
+// Runs a scheduled message immediately
+func scheduledMessagesRun(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
+	if content == "" {
+		privateMessageCreate(s, m.Author.ID, "No scheduled message ID provided", false)
+		return
+	}
+
+	scheduledMessageID := content
+
+	if !viper.IsSet("scheduled_messages." + scheduledMessageID) {
+		privateMessageCreate(s, m.Author.ID, "Scheduled message ID not found", false)
+		return
+	}
+
+	if scheduledMessagesScheduler == nil {
+		logger("error", "Scheduled messages scheduler is not initialised")
+		privateMessageCreate(s, m.Author.ID, "Scheduled messages scheduler is not initialised", false)
+		return
+	}
+
+	sendScheduledMessage(s, scheduledMessageID)
 }
 
 // Lists scheduled scheduled messages
@@ -151,77 +213,42 @@ func scheduledMessagesListScheduled(s *discordgo.Session, m *discordgo.MessageCr
 		privateMessageCreate(s, m.Author.ID, "No scheduled messages found", false)
 		return
 	}
-	privateMessageCreate(s, m.Author.ID, "# Scheduled Messages\n"+jobItems, false)
+	privateMessageCreate(s, m.Author.ID, "# Scheduler for Scheduled Messages\n"+jobItems, false)
 	logger("debug", "Scheduled scheduled messages sent")
 }
 
 // Lists all scheduled messages
 func scheduledMessagesList(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
-	messages := viper.GetStringMap("scheduled_messages")
-	if len(messages) == 0 {
-		privateMessageCreate(s, m.Author.ID, "No scheduled messages found", false)
+	if !viper.IsSet("scheduled_messages") {
+		privateMessageCreate(s, m.Author.ID, "No scheduled messages found 1", false)
 		return
 	}
-	var items string
-	for id, msg := range messages {
-		msgMap, ok := msg.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		archived := msgMap["archived"]
-		if archived != nil && archived.(bool) {
-			continue
-		}
 
-		schedule := msgMap["schedule"]
-		channelID := msgMap["channel_id"]
-		message := msgMap["message"]
-		name := msgMap["name"]
-		items += fmt.Sprintf("## Name: %s\n**ID:** %s\n**Schedule:** `%v`\n**Channel:** %v\n**Message:** %v\n\n", name, id, schedule, channelID, message)
+	scheduledMessagesList := viper.GetStringMap("scheduled_messages")
+
+	if len(scheduledMessagesList) == 0 {
+		privateMessageCreate(s, m.Author.ID, "No scheduled messages found 2", false)
+		return
 	}
-	if items == "" {
+
+	var scheduledMessageItems string
+	for scheduledMessageID, _ := range scheduledMessagesList {
+		name := viper.Get("scheduled_messages." + scheduledMessageID + ".name")
+		schedule := viper.Get("scheduled_messages." + scheduledMessageID + ".schedule")
+		channelID := viper.Get("scheduled_messages." + scheduledMessageID + ".channel_id")
+		message := viper.Get("scheduled_messages." + scheduledMessageID + ".message")
+		archived := viper.Get("scheduled_messages." + scheduledMessageID + ".archived")
+
+		if archived == nil || !archived.(bool) {
+			scheduledMessageItems += fmt.Sprintf("## Name: %s\n**ID:** %s\n**Schedule:** `%v`\n**Channel:** %v\n**Message:** %v\n\n", name, scheduledMessageID, schedule, channelID, message)
+		}
+	}
+	if scheduledMessageItems == "" {
 		privateMessageCreate(s, m.Author.ID, "No scheduled messages found", false)
 		return
 	}
-	privateMessageCreate(s, m.Author.ID, "# Scheduled Messages\n"+items, false)
+	privateMessageCreate(s, m.Author.ID, "# Scheduled Messages\n"+scheduledMessageItems, false)
 	logger("debug", "Scheduled messages list sent")
-}
-
-// Archives a scheduled message
-func scheduledMessagesArchive(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
-	name := content
-	key := "scheduled_messages." + name
-	if !viper.IsSet(key) {
-		privateMessageCreate(s, m.Author.ID, "Scheduled message not found: "+name, false)
-		return
-	}
-	viper.Set(key+".archived", true)
-	viper.WriteConfig()
-	privateMessageCreate(s, m.Author.ID, "Scheduled message archived: "+name, false)
-	logger("warning", "Scheduled message archived: %s", name)
-}
-
-// Runs a scheduled message immediately
-func scheduledMessagesRun(s *discordgo.Session, m *discordgo.MessageCreate, command string, content string) {
-	if content == "" {
-		privateMessageCreate(s, m.Author.ID, "No scheduled message ID provided", false)
-		return
-	}
-
-	scheduledMessageID := content
-
-	if !viper.IsSet("scheduled_messages." + scheduledMessageID) {
-		privateMessageCreate(s, m.Author.ID, "Scheduled message ID not found", false)
-		return
-	}
-
-	if scheduledMessagesScheduler == nil {
-		logger("error", "Scheduled messages scheduler is not initialised")
-		privateMessageCreate(s, m.Author.ID, "Scheduled messages scheduler is not initialised", false)
-		return
-	}
-
-	sendScheduledMessage(s, scheduledMessageID)
 }
 
 // Sends a scheduled message to the configured channel
