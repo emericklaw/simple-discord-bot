@@ -134,6 +134,15 @@ discord_reactions:
       emoji: "name:3434343434"
       role_id: 2222222222
 
+sticky_messages:
+    delay_seconds: 2
+   "YOUR_CHANNEL_ID":
+       message: |
+           📌 **IMPORTANT NOTICE**
+           Please follow the channel rules and guidelines.
+           For help, contact the moderators.
+       old_message_id: "0"
+
 http_api_keys:
     12345:
         channels:
