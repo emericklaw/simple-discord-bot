@@ -65,6 +65,9 @@ func ready(s *discordgo.Session, event *discordgo.Ready) {
 
 		// Scheduled Messages
 		initScheduledMessages()
+
+		// Initialize sticky messages
+		initStickyMessages(dg)
 	}()
 
 }
@@ -89,6 +92,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	} else {
 		author, _ = s.GuildMember(viper.GetString("_discord_default_server_id"), m.Author.ID)
 	}
+
+	// Handle sticky messages for configured channels
+	handleStickyMessage(s, m)
 
 	// ignore commands we don't care about
 	if !strings.HasPrefix(strings.ToLower(m.Content), strings.ToLower(viper.GetString("_command_key"))+" ") {
@@ -455,3 +461,4 @@ func removeTagFromThread(s *discordgo.Session, threadID, tagID string) error {
 	})
 	return err
 }
+
