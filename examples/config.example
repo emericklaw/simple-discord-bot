@@ -19,6 +19,8 @@ commands:
       - all
     deletecommandmessage: true
   "web":
+    aliases:
+      - "website"
     help: "Website"
     message: "https://eehack.space"
     roles:
