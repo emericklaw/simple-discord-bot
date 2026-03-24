@@ -9,6 +9,32 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Helper function to find a command by name or alias
+func findCommandOrAlias(commandToCheck string) (string, bool) {
+	// Check if it's a direct command
+	if _, ok := viper.GetStringMap("commands")[commandToCheck]; ok {
+		return commandToCheck, true
+	}
+
+	// Check if it's an alias
+	allCommands := viper.GetStringMap("commands")
+	for commandName, commandInfo := range allCommands {
+		if commandData, ok := commandInfo.(map[string]interface{}); ok {
+			if aliases, hasAliases := commandData["aliases"]; hasAliases {
+				if aliasesList, ok := aliases.([]interface{}); ok {
+					for _, alias := range aliasesList {
+						if aliasStr, ok := alias.(string); ok && aliasStr == commandToCheck {
+							return commandName, true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return "", false
+}
+
 func findCommand(thecommand string) (string, bool, map[string]string) {
 
 	isValidCommand := false
@@ -31,8 +57,8 @@ func findCommand(thecommand string) (string, bool, map[string]string) {
 			checkthiscommand = checkthiscommand + " " + allparts[i]
 		}
 
-		if _, ok := viper.GetStringMap("commands")[checkthiscommand]; ok {
-			lastvalidcommandfound = checkthiscommand
+		if canonicalCommand, ok := findCommandOrAlias(checkthiscommand); ok {
+			lastvalidcommandfound = canonicalCommand
 			isValidCommand = true
 
 			// assume all remaining unparse tokens are optional.  each loop will update the list until no further valid commands are found
