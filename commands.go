@@ -199,11 +199,27 @@ func showHelp(s *discordgo.Session, m *discordgo.MessageCreate, command string, 
 				continue
 			}
 
-			if len(command) > longestCommandLength {
-				longestCommandLength = len(command)
+			// Add the main command
+			mainCommand := commandkey + " " + command
+			if len(mainCommand) > longestCommandLength {
+				longestCommandLength = len(mainCommand)
 			}
-
-			helpCommands[commandkey+" "+command] = help
+			helpCommands[mainCommand] = help
+			
+			// Add aliases as separate commands
+			if aliases, hasAliases := info.(map[string]interface{})["aliases"]; hasAliases {
+				if aliasesList, ok := aliases.([]interface{}); ok {
+					for _, alias := range aliasesList {
+						if aliasStr, ok := alias.(string); ok {
+							aliasCommand := commandkey + " " + aliasStr
+							if len(aliasCommand) > longestCommandLength {
+								longestCommandLength = len(aliasCommand)
+							}
+							helpCommands[aliasCommand] = help
+						}
+					}
+				}
+			}
 		}
 
 	}
@@ -219,7 +235,7 @@ func showHelp(s *discordgo.Session, m *discordgo.MessageCreate, command string, 
 
 	// Iterate over the sorted keys and access the map values
 	for _, key := range keys {
-		helpMessage += key + strings.Repeat(" ", longestCommandLength+len(commandkey)+2-len(key)) + "- " + helpCommands[key] + "\n"
+		helpMessage += key + strings.Repeat(" ", longestCommandLength+2-len(key)) + "- " + helpCommands[key] + "\n"
 	}
 
 	helpMessage = "Help Commands:\n--------------\n" + helpMessage
