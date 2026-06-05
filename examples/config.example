@@ -149,3 +149,11 @@ http_api_keys:
     12345:
         channels:
             - 12345678901234567890
+
+rss_feeds:
+    test-feed:
+        channel_id: "1234567890"
+        disabled: false
+        interval: 300
+        name: Test Feed
+        url: https://example.com/feed.rss
