@@ -205,7 +205,7 @@ func showHelp(s *discordgo.Session, m *discordgo.MessageCreate, command string, 
 				longestCommandLength = len(mainCommand)
 			}
 			helpCommands[mainCommand] = help
-			
+
 			// Add aliases as separate commands
 			if aliases, hasAliases := info.(map[string]interface{})["aliases"]; hasAliases {
 				if aliasesList, ok := aliases.([]interface{}); ok {

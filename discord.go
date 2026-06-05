@@ -66,6 +66,9 @@ func ready(s *discordgo.Session, event *discordgo.Ready) {
 		// Scheduled Messages
 		initScheduledMessages()
 
+		// RSS Feeds
+		initRSSFeeds()
+
 		// Initialize sticky messages
 		initStickyMessages(dg)
 	}()
@@ -461,4 +464,3 @@ func removeTagFromThread(s *discordgo.Session, threadID, tagID string) error {
 	})
 	return err
 }
-

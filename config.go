@@ -27,6 +27,7 @@ func loadConfig(reload ...bool) {
 	if isReload {
 		initTasks()
 		initScheduledMessages()
+		initRSSFeeds()
 	}
 }
 
