@@ -257,7 +257,7 @@ func inductionInteractionHandler(s *discordgo.Session, i *discordgo.InteractionC
 		}
 
 		titleText := getDiscordDisplayName(i.Member) + " would like an induction for " + requestTitleRoleName
-		messageText := "<@" + i.Member.User.ID + "> would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please can someone help them out? <@&" + interactionParameters[1] + ">"
+		messageText := "<@" + i.Member.User.ID + "> would like an induction for " + requestTitleRoleName + ". Please can someone help them out? <@&" + interactionParameters[1] + ">"
 
 		outstandingTagID := viper.GetString("discord_inductions.outstanding_tag_id")
 
@@ -281,7 +281,7 @@ func inductionInteractionHandler(s *discordgo.Session, i *discordgo.InteractionC
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "A induction request has been made for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please keep an eye out for a reply from someone that can induct you here <#" + thread.ID + ">",
+				Content: "A induction request has been made for " + requestTitleRoleName + ". Please keep an eye out for a reply from someone that can induct you here <#" + thread.ID + ">",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
