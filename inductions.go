@@ -239,8 +239,24 @@ func inductionInteractionHandler(s *discordgo.Session, i *discordgo.InteractionC
 
 		guildID := viper.GetString("_discord_default_server_id")
 		role, _ := dg.State.Role(guildID, interactionParameters[1])
+		roleNameForRequest := strings.SplitN(role.Name, " - ", 2)[1]
+		roleNameParts := strings.Split(roleNameForRequest, " - ")
+		filteredRoleNameParts := []string{}
+		for _, roleNamePart := range roleNameParts {
+			trimmedRoleNamePart := strings.TrimSpace(roleNamePart)
+			if strings.HasPrefix(strings.ToLower(trimmedRoleNamePart), "z ") {
+				continue
+			}
 
-		titleText := getDiscordDisplayName(i.Member) + " would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1]
+			filteredRoleNameParts = append(filteredRoleNameParts, trimmedRoleNamePart)
+		}
+
+		requestTitleRoleName := strings.Join(filteredRoleNameParts, " - ")
+		if requestTitleRoleName == "" {
+			requestTitleRoleName = strings.TrimPrefix(strings.TrimSpace(roleNameForRequest), "z ")
+		}
+
+		titleText := getDiscordDisplayName(i.Member) + " would like an induction for " + requestTitleRoleName
 		messageText := "<@" + i.Member.User.ID + "> would like an induction for " + strings.SplitN(role.Name, " - ", 2)[1] + ". Please can someone help them out? <@&" + interactionParameters[1] + ">"
 
 		outstandingTagID := viper.GetString("discord_inductions.outstanding_tag_id")
