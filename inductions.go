@@ -91,12 +91,26 @@ func updateInductionMessage(s *discordgo.Session, requestMessageID string) {
 			}
 
 			if strings.Count(role.Name, "-") == 1 {
+				topLevelRoleLabel := strings.TrimSpace(strings.Replace(strings.Split(role.Name, "-")[1], " DISABLED", "", 1))
+				topLevelButtonLabel := strings.TrimPrefix(topLevelRoleLabel, "z ")
 
 				if errMembers == nil {
+					matchingRoleIDs := map[string]bool{role.ID: true}
+					for _, possibleSubRole := range roles {
+						if !strings.HasPrefix(possibleSubRole.Name, "Induction -") || strings.Count(possibleSubRole.Name, "-") <= 1 {
+							continue
+						}
+
+						subRoleGroupLabel := strings.TrimSpace(strings.Replace(strings.Split(possibleSubRole.Name, "-")[1], " DISABLED", "", 1))
+						if subRoleGroupLabel == topLevelRoleLabel {
+							matchingRoleIDs[possibleSubRole.ID] = true
+						}
+					}
+
 					membersWithRole := ""
 					for _, member := range members {
 						for _, memberRole := range member.Roles {
-							if memberRole == role.ID {
+							if matchingRoleIDs[memberRole] {
 								membersWithRole = membersWithRole + "<@" + member.User.ID + ">\n"
 								break
 							}
@@ -104,7 +118,7 @@ func updateInductionMessage(s *discordgo.Session, requestMessageID string) {
 					}
 
 					newField := &discordgo.MessageEmbedField{
-						Name:   strings.TrimSpace(strings.Split(role.Name, "-")[1]),
+						Name:   topLevelButtonLabel,
 						Value:  membersWithRole,
 						Inline: true,
 					}
@@ -112,16 +126,17 @@ func updateInductionMessage(s *discordgo.Session, requestMessageID string) {
 				}
 
 				actionButton := discordgo.Button{
-					Label:    strings.TrimSpace(strings.Replace(strings.Split(role.Name, "-")[1], " DISABLED", "", 1)),
+					Label:    topLevelButtonLabel,
 					Style:    discordgo.DangerButton,
 					CustomID: "InductionRequest:" + role.ID,
-					Disabled: strings.HasSuffix(role.Name, " DISABLED"),
+					Disabled: strings.HasSuffix(role.Name, " DISABLED") || strings.HasPrefix(topLevelRoleLabel, "z "),
 				}
 				actionRow.Components = append(actionRow.Components, actionButton)
 
 			} else {
+				nestedRoleLabel := strings.TrimSpace(strings.Replace(strings.Split(role.Name, "-")[2], " DISABLED", "", 1))
 				actionButton := discordgo.Button{
-					Label:    strings.TrimSpace(strings.Replace(strings.Split(role.Name, "-")[2], " DISABLED", "", 1)),
+					Label:    nestedRoleLabel,
 					Style:    discordgo.PrimaryButton,
 					CustomID: "InductionRequest:" + role.ID,
 					Disabled: strings.HasSuffix(role.Name, " DISABLED"),
